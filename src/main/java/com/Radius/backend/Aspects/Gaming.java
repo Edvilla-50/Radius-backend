@@ -1,7 +1,7 @@
-package Aspects;
+package com.Radius.backend.Aspects;
 
-public class Hiking implements Interests{
-   public String name ="Hiking";
+public class Gaming implements Interests{
+   public String name ="Gaming";
    public boolean moneyneeded = false;
    public boolean disAccesible = false;
    public String diff = "";
@@ -31,3 +31,4 @@ public class Hiking implements Interests{
     this.moneyneeded = con3;
    }
 }
+
