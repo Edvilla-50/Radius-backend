@@ -17,7 +17,7 @@ public class Hiking implements Interests{
    }
    @Override
    public void setDifficulty(String diff, String state){
-        if(diff.equals("Easy")||diff.equals("Medium")|| diff.equals("Hard")){//tight constraints
+        if(diff.equals("Easy")||diff.equals("Medium")|| diff.equals("Hard")){//tight constraints, but it should be more optimal really
             this.diff = diff;
         }
         this.state = state;
