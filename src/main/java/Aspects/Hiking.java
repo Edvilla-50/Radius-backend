@@ -6,6 +6,7 @@ public class Hiking implements Interests{
    public boolean disAccesible = false;
    public String diff = "";
    public String time = "";
+   public String state = "";
    @Override
    public void setOudoorsCond(boolean con){
     this.moneyneeded = con;
@@ -15,10 +16,11 @@ public class Hiking implements Interests{
         this.disAccesible = con2;
    }
    @Override
-   public void setDifficulty(String diff){
+   public void setDifficulty(String diff, String state){
         if(diff.equals("Easy")||diff.equals("Medium")|| diff.equals("Hard")){
             this.diff = diff;
         }
+        this.state = state;
    }
    @Override
    public void setMeetUpTime(String time){
