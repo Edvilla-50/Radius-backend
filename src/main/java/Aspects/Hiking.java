@@ -23,7 +23,7 @@ public class Hiking implements Interests{
         this.state = state;
    }
    @Override
-   public void setMeetUpTime(String time){
+   public void setMeetUpTime(String time){//also not the most optimal, I should try changing this
     this.time = time;
    }    
    @Override
