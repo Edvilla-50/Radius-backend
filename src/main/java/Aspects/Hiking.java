@@ -8,7 +8,7 @@ public class Hiking implements Interests{
    public String time = "";
    public String state = "";
    @Override
-   public void setOudoorsCond(boolean con){
+   public void setOudoorsCond(boolean con){//setters and getters vro
     this.moneyneeded = con;
    }
    @Override
@@ -17,7 +17,7 @@ public class Hiking implements Interests{
    }
    @Override
    public void setDifficulty(String diff, String state){
-        if(diff.equals("Easy")||diff.equals("Medium")|| diff.equals("Hard")){
+        if(diff.equals("Easy")||diff.equals("Medium")|| diff.equals("Hard")){//tight constraints
             this.diff = diff;
         }
         this.state = state;
