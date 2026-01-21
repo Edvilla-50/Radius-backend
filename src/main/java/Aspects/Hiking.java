@@ -1,7 +1,7 @@
 package Aspects;
 
 public class Hiking implements Interests{
-   public String name ="";
+   public String name ="Hiking";
    public boolean moneyneeded = false;
    public boolean disAccesible = false;
    public String diff = "";
