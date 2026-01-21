@@ -24,6 +24,7 @@ public class Hiking implements Interests{
    public void setMeetUpTime(String time){
     this.time = time;
    }    
+   @Override
    public void setMoneyCond(boolean con3){
     this.moneyneeded = con3;
    }
