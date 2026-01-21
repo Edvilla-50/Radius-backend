@@ -7,10 +7,6 @@ public class Hiking implements Interests{
    public String diff = "";
    public String time = "";
    @Override
-   public void setName(String name){
-    this.name = name;
-   } 
-   @Override
    public void setOudoorsCond(boolean con){
     this.moneyneeded = con;
    }
