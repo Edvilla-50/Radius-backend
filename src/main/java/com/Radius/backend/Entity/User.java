@@ -1,6 +1,8 @@
 package com.Radius.backend.Entity;
 import jakarta.persistence.*;
 import java.util.Set;
+
+import com.Radius.backend.Aspects.Interests;
 @Entity
 @Table(name = "users")
 public class User {
@@ -9,6 +11,7 @@ public class User {
     private Long id;
     private String name;
     private int age;
+    private Set<Interests> hobbies;
     @ElementCollection//makes a table called user_interests, it isnt another silly ahh entity, just a table that maps a user to their interests via a id
     @CollectionTable(name="user_interests", joinColumns = @JoinColumn(name = "user_id"))
     private Set<String> interests;
@@ -28,8 +31,8 @@ public class User {
     public void setInterests(Set<String> interests){//remember everyone is diffrent, so you gotta use this.interests, I love you man
         this.interests = interests;
     }
-    public Set<String> getInterests(){
-        return interests;
+    public Set<Interests> getInterests(){
+        return this.hobbies;
     }
     public void setId(Long id){//dont code to country music man, I really didnt want to push this because luke combs came on
         this.id = id;
