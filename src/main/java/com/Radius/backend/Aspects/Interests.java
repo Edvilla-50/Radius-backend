@@ -1,5 +1,6 @@
 package com.Radius.backend.Aspects;
 
+
 public interface Interests {
 
 
