@@ -1,4 +1,4 @@
-package com.Radius.backend.Entity;
+package com.Radius.backend.Forumulas;
 
 public class Haversine {
    private static final double EARTH_RADIUS_MILES = 3958.8; // Earth's radius in miles

@@ -1,4 +1,4 @@
-package com.Radius.backend.Entity;
+package com.Radius.backend.Forumulas;
 
 public class GoongaGingaAlgorithm {
     
