@@ -1,10 +1,10 @@
 package com.Radius.backend.Aspects;
 
 
-public class SportsGame implements Interests{//Reddit ahh class name
-   public String name ="Sports Game";
-   public boolean moneyneeded = false;
-   public boolean disAccesible = false;
+public class Concert implements Interests{//Reddit ahh class name
+   public String name ="Concert";
+   public boolean moneyneeded = true;
+   public boolean disAccesible = true;
    public String diff = "";
    public String time = "";
    public String state = "";
