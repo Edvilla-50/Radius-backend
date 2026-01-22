@@ -1,7 +1,7 @@
 package com.Radius.backend.Aspects;
 
 
-public class SportsGame implements Interests{
+public class SportsGame implements Interests{//Reddit ahh  class name
    public String name ="Sports Game";
    public boolean moneyneeded = false;
    public boolean disAccesible = false;
