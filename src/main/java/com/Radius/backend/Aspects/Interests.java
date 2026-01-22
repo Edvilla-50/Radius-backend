@@ -1,4 +1,4 @@
-package Aspects;
+package com.Radius.backend.Aspects;
 
 public interface Interests {
 
