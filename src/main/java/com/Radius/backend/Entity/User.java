@@ -13,6 +13,8 @@ public class User {
 
     private String name;
     private int age;
+    private double lon;
+    private double lat;
 
     @ManyToMany
     @JoinTable(//silly ahh table that I made in data base, SQL am I right?
@@ -50,5 +52,11 @@ public class User {
 
     public void setInterests(Set<InterestEntity> interests) {
         this.interests = interests;
+    }
+    public double getLat(){
+        return this.lat;
+    }
+    public double getLon(){
+        return this.lon;
     }
 }
