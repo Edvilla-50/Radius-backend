@@ -15,6 +15,9 @@ public class User {
     private int age;
     private double lon;
     private double lat;
+    private double perferredDistance;
+    private int minAgePref;
+    private int maxAgePref;
 
     @ManyToMany
     @JoinTable(//silly ahh table that I made in data base, SQL am I right?
@@ -58,5 +61,14 @@ public class User {
     }
     public double getLon(){
         return this.lon;
+    }
+    public double getPerferredDistance(){
+        return this.perferredDistance;
+    }
+    public int getMinAgePref(){
+        return this.minAgePref;
+    }
+    public int maxMinAgePref(){
+        return this.maxAgePref;
     }
 }
