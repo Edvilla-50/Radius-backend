@@ -64,6 +64,14 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>com.vonage</groupId>
+			<artifactId>server-sdk</artifactId>
+			<version>9.3.1</version>
+		</dependency>
+
+
 	</dependencies>
 
 	<build>
@@ -72,7 +80,22 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
-		</plugins>
+        	<plugin>
+            	<groupId>org.codehaus.mojo</groupId>
+            	<artifactId>exec-maven-plugin</artifactId>
+            	<version>3.1.0</version>
+        	</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<mainClass>com.Radius.backend.Tests.Test</mainClass>
+				</configuration>
+			</plugin>
+    	</plugins>
 	</build>
+
+	
 
 </project>

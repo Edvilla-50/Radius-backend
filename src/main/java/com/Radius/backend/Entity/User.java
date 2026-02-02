@@ -18,6 +18,9 @@ public class User {
     private double perferredDistance;
     private int minAgePref;
     private int maxAgePref;
+    private String emergencyPhoneOne;//forced phone numbers that users must put in case a meetup hits the shitfan, I guess
+    private String emergencyPhoneTwo;//another one -DJ Khaled
+
 
     @ManyToMany
     @JoinTable(//silly ahh table that I made in data base, SQL am I right?
@@ -70,5 +73,11 @@ public class User {
     }
     public int maxMinAgePref(){
         return this.maxAgePref;
+    }
+    public String getEmergencyOne(){
+        return this.emergencyPhoneOne;
+    }
+    public String getEmergencyTwo(){
+        return this.emergencyPhoneTwo;
     }
 }
