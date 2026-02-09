@@ -3,6 +3,8 @@ package com.Radius.backend.Entity;
 import jakarta.persistence.*;//needed for that sweet sweet polymorphism
 import java.util.Set;//To not duplicate hobbies
 
+import com.Radius.backend.Data_Structres.TraitStack;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -20,6 +22,7 @@ public class User {
     private int maxAgePref;
     private String emergencyPhoneOne;//forced phone numbers that users must put in case a meetup hits the shitfan, I guess
     private String emergencyPhoneTwo;//another one -DJ Khaled
+    private TraitStack stack;
 
 
     @ManyToMany
@@ -76,8 +79,5 @@ public class User {
     }
     public String getEmergencyOne(){
         return this.emergencyPhoneOne;
-    }
-    public String getEmergencyTwo(){
-        return this.emergencyPhoneTwo;
     }
 }

@@ -17,14 +17,14 @@ public class GetInnocuous {
     public float compatibility(User me) {
         double lon = me.getLon();//get user current longitude
         double lat = me.getLat();//get user current latitude
-        double pref = me.getPerferredDistance();//
-        double deltaLat = pref/69.00;
-        double deltaLon = pref / (69 * Math.cos(Math.toRadians(lat)));
-        double MaxNorth = lat +deltaLat;
-        double MaxEast = lon+deltaLon;
-        double MaxWest = lon-deltaLon;
-        double MaxSouth = lat-deltaLat;
-        List<User> nearby = RepoSearch.findByLatBetweenAndLonBetween(MaxSouth,MaxNorth,MaxWest,MaxEast);
+        double pref = me.getPerferredDistance();//pref distance of user
+        double deltaLat = pref/69.00;//convert lon degrees to miles
+        double deltaLon = pref / (69 * Math.cos(Math.toRadians(lat)));//convert lat degree to miles
+        double MaxNorth = lat +deltaLat;//bound max distance north
+        double MaxEast = lon+deltaLon;//bound max distance east
+        double MaxWest = lon-deltaLon;//bound max distance west
+        double MaxSouth = lat-deltaLat;//bound max distance south
+        List<User> nearby = RepoSearch.findByLatBetweenAndLonBetween(MaxSouth,MaxNorth,MaxWest,MaxEast);//use JPA to make a SQL call with the pain of SQL, I love you so much vro <3
         return 0.0f;
     }
 }
