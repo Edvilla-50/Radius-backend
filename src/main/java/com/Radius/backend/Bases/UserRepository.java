@@ -6,7 +6,7 @@ import java.util.List;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    List<User> findByLatBetweenAndLonBetween(
+    List<User> findByLatBetweenAndLonBetween(//JPA convention for custom SQL call
         double minLat,
         double maxLat,
         double minLon,
