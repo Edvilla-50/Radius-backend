@@ -2,7 +2,7 @@ package com.Radius.backend.Data_Structres;
 
 public class TraitStack {
     private TraitNode top;  
-    private int length;
+    private int length;//very important for dynamic formula
 
     public TraitStack(String trait){
         top = null;
@@ -19,6 +19,7 @@ public class TraitStack {
         }
         String trait = top.trait;
         top = top.next;
+        this.length--;
         return trait;
     }
     public String peek(){
