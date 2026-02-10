@@ -25,6 +25,11 @@ public class GetInnocuous {
         double MaxWest = lon-deltaLon;//bound max distance west
         double MaxSouth = lat-deltaLat;//bound max distance south
         List<User> nearby = RepoSearch.findByLatBetweenAndLonBetween(MaxSouth,MaxNorth,MaxWest,MaxEast);//use JPA to make a SQL call with the pain of SQL, I love you so much vro <3
+        int len = me.getStackSize();
+        int[] arr = new int[len];
+        for (int i = 0; i<nearby.size();i++){
+            break;
+        }
         return 0.0f;
     }
 }

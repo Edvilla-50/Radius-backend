@@ -1,11 +1,15 @@
 package com.Radius.backend.Data_Structres;
 
+import jakarta.persistence.Entity;
+
+
 public class TraitStack {
     private TraitNode top;  
     private int length;//very important for dynamic formula
 
     public TraitStack(String trait){
         top = null;
+        length =0;
     }
     public void push(String trait){
         TraitNode node = new TraitNode(trait);

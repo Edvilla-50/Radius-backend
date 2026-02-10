@@ -22,6 +22,7 @@ public class User {
     private int maxAgePref;
     private String emergencyPhoneOne;//forced phone numbers that users must put in case a meetup hits the shitfan, I guess
     private String emergencyPhoneTwo;//another one -DJ Khaled
+    @Transient
     private TraitStack stack;
 
 
@@ -79,5 +80,14 @@ public class User {
     }
     public String getEmergencyOne(){
         return this.emergencyPhoneOne;
+    }
+    public void pushToStack(String name){
+        stack.push(name);
+    }
+    public String popOnStack(){
+        return stack.pop();
+    }
+    public int getStackSize(){
+        return stack.getLength();
     }
 }
