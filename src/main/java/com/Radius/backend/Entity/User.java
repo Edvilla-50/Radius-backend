@@ -24,6 +24,7 @@ public class User {
     private String emergencyPhoneTwo;//another one -DJ Khaled
     @Transient
     private TraitStack stack;
+    private float score;
 
 
     @ManyToMany
@@ -81,13 +82,20 @@ public class User {
     public String getEmergencyOne(){
         return this.emergencyPhoneOne;
     }
-    public void pushToStack(String name){
-        stack.push(name);
+    public void pushAllIntrestsToStack(){
+        for (int i = 0; i<this.interests.size();i++){
+
     }
     public String popOnStack(){
         return stack.pop();
     }
     public int getStackSize(){
         return stack.getLength();
+    }
+    public void setScore(float score){
+        this.score = score;
+    }
+    public float getScore(){
+        return this.score;
     }
 }

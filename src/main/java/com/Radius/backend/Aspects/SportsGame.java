@@ -31,5 +31,9 @@ public class SportsGame implements Interests{//Reddit ahh class name
    public void setMoneyCond(boolean con3){
     this.moneyneeded = con3;
    }
+   @Override
+   public String getName(){
+     return this.name;
+   }
 }
 

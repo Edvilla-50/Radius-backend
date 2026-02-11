@@ -30,5 +30,9 @@ public class Gaming implements Interests{
    public void setMoneyCond(boolean con3){
     this.moneyneeded = con3;
    }
+   @Override
+   public String getName(){
+     return this.name;
+   }
 }
 

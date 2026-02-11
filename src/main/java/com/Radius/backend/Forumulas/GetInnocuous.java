@@ -1,6 +1,8 @@
 package com.Radius.backend.Forumulas;
 import com.Radius.backend.Bases.UserRepository;
 import com.Radius.backend.Entity.User;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class GetInnocuous {
@@ -27,9 +29,25 @@ public class GetInnocuous {
         List<User> nearby = RepoSearch.findByLatBetweenAndLonBetween(MaxSouth,MaxNorth,MaxWest,MaxEast);//use JPA to make a SQL call with the pain of SQL, I love you so much vro <3
         int len = me.getStackSize();
         int[] arr = new int[len];
+        List<User> trueCan = new ArrayList<>();
         for (int i = 0; i<nearby.size();i++){
-            break;
+            double dist = 0.0;
+            dist = hs.haversine(me.getLat(),me.getLon(),nearby.get(i).getLat(),nearby.get(i).getLon());
+            if(dist<=me.getPerferredDistance()){
+                trueCan.add(nearby.get(i));
+            }
         }
-        return 0.0f;
+        return mergeSort(trueCan);
+    }
+    public static float mergeSort(List<User> truecan){
+        int n = truecan.size();
+        if(n<2){
+            return 0.0f;
+        }
+        List<User> temp = new List<User>();
+        mergeSortHelper(truecan, 0, n-1, temp);
+    }
+    public static void mergeSortHelper(List<User> turecan, int from, int to, List<User> temp){
+
     }
 }
