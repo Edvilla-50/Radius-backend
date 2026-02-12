@@ -44,10 +44,11 @@ public class GetInnocuous {
         if(n<2){
             return 0.0f;
         }
-        List<User> temp = new List<User>();
+        List<User> temp = new ArrayList<>();
         mergeSortHelper(truecan, 0, n-1, temp);
+        return 0.0f;
     }
     public static void mergeSortHelper(List<User> turecan, int from, int to, List<User> temp){
-        
+        return;
     }
 }
