@@ -3,6 +3,7 @@ package com.Radius.backend.Entity;
 import jakarta.persistence.*;//needed for that sweet sweet polymorphism
 import java.util.Set;//To not duplicate hobbies
 
+import com.Radius.backend.Aspects.Interests;
 import com.Radius.backend.Data_Structres.TraitStack;
 
 @Entity
@@ -83,8 +84,9 @@ public class User {
         return this.emergencyPhoneOne;
     }
     public void pushAllIntrestsToStack(){
-        for (int i = 0; i<this.interests.size();i++){
-
+       for (InterestEntity interest : this.interests) {
+            stack.push(interest.getName());
+        }
     }
     public String popOnStack(){
         return stack.pop();
