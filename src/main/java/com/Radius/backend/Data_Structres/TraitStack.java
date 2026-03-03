@@ -4,38 +4,51 @@ import jakarta.persistence.Entity;
 
 
 public class TraitStack {
-    private TraitNode top;  
-    private int length;//very important for dynamic formula
+    public record TraitPopResult(String trait, int position) {}
+    private TraitNode top;
+    private int length;
 
-    public TraitStack(String trait){
+    public TraitStack() {
         top = null;
-        length =0;
+        length = 0;
     }
+
     public void push(String trait){
         TraitNode node = new TraitNode(trait);
-        node.next = top; 
-        top = node;    
-        this.length++;
+
+        node.next = top;
+        top = node;
+
+        length++;
     }
-    public String pop(){
+
+    public TraitPopResult pop(){
         if(top == null){
             return null;
         }
+
         String trait = top.trait;
+        int position = length;
+
         top = top.next;
-        this.length--;
-        return trait;
+        length--;
+
+        return new TraitPopResult(trait, position);
     }
+
     public String peek(){
-        return top.trait;
+        return top == null ? null : top.trait;
     }
+
     public int getLength(){
-        return this.length;
+        return length;
     }
 }
-class TraitNode{
+class TraitNode {
+
     String trait;
     TraitNode next;
+
     public TraitNode(String trait){
         this.trait = trait;
         this.next = null;

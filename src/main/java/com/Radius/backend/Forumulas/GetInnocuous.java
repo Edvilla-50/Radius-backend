@@ -1,16 +1,21 @@
 package com.Radius.backend.Forumulas;
+import com.Radius.backend.Aspects.*;
 import com.Radius.backend.Bases.UserRepository;
+import com.Radius.backend.Data_Structres.TraitStack.TraitPopResult;
 import com.Radius.backend.Entity.User;
 
 import java.util.ArrayList;
 import java.util.List;
-
 public class GetInnocuous {
 
     Haversine hs = new Haversine();
     private final UserRepository RepoSearch;
     public GetInnocuous(UserRepository RepoSearch){
         this.RepoSearch = RepoSearch;
+    }
+
+    public static double score(int position, int stackSize) {//sigmoid more like sigma am I right fellas?
+        return (double)(stackSize - position) / stackSize;
     }
     /**
  * Returns most compatibale user
@@ -37,18 +42,26 @@ public class GetInnocuous {
                 trueCan.add(nearby.get(i));
             }
         }
-        return mergeSort(trueCan);
+        return NRank(trueCan, me);
     }
-    public static float mergeSort(List<User> truecan){
-        int n = truecan.size();
-        if(n<2){
-            return 0.0f;
+    public static float NRank(List<User> truecan, User me){
+        for(int i = 0; i<truecan.size();i++){//hobby etractor, last index being the most important, will replace after for loop is complete
+            int total = me.getStackSize();
+            List<String> hobofInt = new ArrayList<>();
+            List<String> hobMine = new ArrayList<>();
+            for(int o = 0; o<hobofInt.size();o++){
+                if(o>hobMine.size()){
+                    int stackSize = me.getStackSize();
+                    if(hobofInt.get(o).equals(hobMine.get(o))){
+                        TraitPopResult pop = me.popOnStack();
+                        String trait = pop.trait();
+                        int position = pop.position();
+                        truecan.get(i).setScore(score(position,stackSize));
+                    }
+                return 0.0f;
+                }
+            }
         }
-        List<User> temp = new ArrayList<>();
-        mergeSortHelper(truecan, 0, n-1, temp);
         return 0.0f;
-    }
-    public static void mergeSortHelper(List<User> turecan, int from, int to, List<User> temp){
-        return;
     }
 }

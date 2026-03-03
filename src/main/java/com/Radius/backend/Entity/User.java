@@ -5,6 +5,7 @@ import java.util.Set;//To not duplicate hobbies
 
 import com.Radius.backend.Aspects.Interests;
 import com.Radius.backend.Data_Structres.TraitStack;
+import com.Radius.backend.Data_Structres.TraitStack.TraitPopResult;
 
 @Entity
 @Table(name = "users")
@@ -21,11 +22,11 @@ public class User {
     private double perferredDistance;
     private int minAgePref;
     private int maxAgePref;
-    private String emergencyPhoneOne;//forced phone numbers that users must put in case a meetup hits the shitfan, I guess
-    private String emergencyPhoneTwo;//another one -DJ Khaled
+    private String emergencyPhoneOne;//forced phone numbers that users must put in case a meetup is unsafe
+    private String emergencyPhoneTwo;//another one 
     @Transient
     private TraitStack stack;
-    private float score;
+    private double score;
 
 
     @ManyToMany
@@ -34,7 +35,7 @@ public class User {
         joinColumns = @JoinColumn(name = "user_id"),
         inverseJoinColumns = @JoinColumn(name = "interest_id")
     )
-    private Set<InterestEntity> interests; //FIX to the polymorphism (at least faked)that JPA for some reason did not fw
+    private Set<InterestEntity> interests; //FIX to the polymorphism (at least faked)that JPA for some reason did not like
     public User() {}
 
     public User(String name, int age, Set<InterestEntity> interests) {
@@ -88,16 +89,17 @@ public class User {
             stack.push(interest.getName());
         }
     }
-    public String popOnStack(){
+    public TraitPopResult popOnStack(){
         return stack.pop();
     }
     public int getStackSize(){
         return stack.getLength();
     }
-    public void setScore(float score){
-        this.score = score;
+    public void setScore(double score){
+        this.score = this.score+score;
     }
-    public float getScore(){
+    public double getScore(){
         return this.score;
     }
 }
+
