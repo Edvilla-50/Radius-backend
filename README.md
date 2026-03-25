@@ -6,3 +6,5 @@ Anyway, this app is designed so people can walk around their neighborhood or pre
 similar intrests using a sigmoid formula and a custom scoring system I built which uses a stack and allows users to orginize it by importance at the top and least at the bottom
 
 It isnt complete yet, but for now this is what I have, and as Ringo Starr says, peace and love
+
+![Sponge](images/sponge.png)
