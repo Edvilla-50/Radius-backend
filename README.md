@@ -7,4 +7,7 @@ similar intrests using a sigmoid formula and a custom scoring system I built whi
 
 It isnt complete yet, but for now this is what I have, and as Ringo Starr says, peace and love
 
-![Sponge](images/sponge.png)  ![hill](images/hill.gif)
+
+ ![hill](images/hill.gif)
+
+![Sponge](images/sponge.png) 
