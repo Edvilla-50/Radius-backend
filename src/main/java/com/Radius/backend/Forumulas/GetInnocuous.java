@@ -39,29 +39,36 @@ public class GetInnocuous {
             double dist = 0.0;
             dist = hs.haversine(me.getLat(),me.getLon(),nearby.get(i).getLat(),nearby.get(i).getLon());
             if(dist<=me.getPerferredDistance()){
-                trueCan.add(nearby.get(i));
+                trueCan.add(nearby.get(i));//append compatiable user via distance, add to list
             }
         }
-        return NRank(trueCan, me);
+        NRank(trueCan, me);
     }
-    public static float NRank(List<User> truecan, User me){
-        for(int i = 0; i<truecan.size();i++){//hobby etractor, last index being the most important, will replace after for loop is complete
-            int total = me.getStackSize();
-            List<String> hobofInt = new ArrayList<>();
-            List<String> hobMine = new ArrayList<>();
-            for(int o = 0; o<hobofInt.size();o++){
-                if(o>hobMine.size()){
-                    int stackSize = me.getStackSize();
-                    if(hobofInt.get(o).equals(hobMine.get(o))){
-                        TraitPopResult pop = me.popOnStack();
-                        String trait = pop.trait();
-                        int position = pop.position();
-                        truecan.get(i).setScore(score(position,stackSize));
-                    }
-                return 0.0f;
+    public static void NRank(List<User> truecan, User me){//void since we pass by refrence
+        List<TraitPopResult> meTrait = new ArrayList<>();
+        int i=me.getStackSize();
+        int size = me.getStackSize();//it will change as we pop so we need it early on
+        int o =0;
+        while(i!=0){
+            meTrait.add(me.popOnStack());//metrait has all user traits from most important at front and least at back
+            i--;
+        }
+        for(int u = 0; u<truecan.size();u++){
+            List<TraitPopResult> oppTrait = new ArrayList<>();
+            int t = truecan.get(u).getStackSize();//get canidate user stack size
+            int oppsize = t;//store opppttait stack before it is modified
+            while(t!=0){
+                oppTrait.add(truecan.get(u).popOnStack());
+                t--;
+            }
+            t=0;
+            while(t<size){
+                int t2=0
+                while(t2<oppsize){
+                    if(meTrait.get(t).trait().equals(oppTrait.get(t2).trait()))
+                        truecan.get(u).setScore(score(oppsize, oppTrait.get(t2).position() ));
                 }
             }
-        }
-        return 0.0f;
+       }
     }
 }
