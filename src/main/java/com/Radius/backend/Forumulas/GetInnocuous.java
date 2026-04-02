@@ -48,7 +48,6 @@ public class GetInnocuous {
         List<TraitPopResult> meTrait = new ArrayList<>();
         int i=me.getStackSize();
         int size = me.getStackSize();//it will change as we pop so we need it early on
-        int o =0;
         while(i!=0){
             meTrait.add(me.popOnStack());//metrait has all user traits from most important at front and least at back
             i--;
@@ -63,10 +62,11 @@ public class GetInnocuous {
             }
             t=0;
             while(t<size){
-                int t2=0
+                int t2=0;
                 while(t2<oppsize){
                     if(meTrait.get(t).trait().equals(oppTrait.get(t2).trait()))
-                        truecan.get(u).setScore(score(oppsize, oppTrait.get(t2).position() ));
+                        truecan.get(u).setScore(score(oppTrait.get(t2).position(), oppsize));
+                    t2++;
                 }
             }
        }
