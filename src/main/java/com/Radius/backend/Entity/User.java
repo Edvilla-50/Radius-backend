@@ -25,7 +25,8 @@ public class User {
     private String emergencyPhoneOne;//forced phone numbers that users must put in case a meetup is unsafe
     private String emergencyPhoneTwo;//another one 
     @Transient
-    private TraitStack stack;
+    private TraitStack stack = new TraitStack();
+    @Transient
     private double score;
 
 
@@ -85,6 +86,7 @@ public class User {
         return this.emergencyPhoneOne;
     }
     public void pushAllIntrestsToStack(){
+        stack = new TraitStack();
        for (InterestEntity interest : this.interests) {
             stack.push(interest.getName());
         }
