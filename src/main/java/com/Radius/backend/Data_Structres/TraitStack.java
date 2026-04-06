@@ -7,6 +7,7 @@ public class TraitStack {
     public record TraitPopResult(String trait, int position) {}
     private TraitNode top;
     private int length;
+    private int originalSize; 
 
     public TraitStack() {
         top = null;
@@ -20,6 +21,7 @@ public class TraitStack {
         top = node;
 
         length++;
+        originalSize = length;
     }
 
     public TraitPopResult pop(){
@@ -28,7 +30,7 @@ public class TraitStack {
         }
 
         String trait = top.trait;
-        int position = length;
+        int position = (originalSize - length)+1;
 
         top = top.next;
         length--;

@@ -21,7 +21,7 @@ public class GetInnocuous {
  * Returns most compatibale user
      * Higher score = more compatible
      */
-    public float compatibility(User me) {
+    public List <User> compatibility(User me) {
         double lon = me.getLon();//get user current longitude
         double lat = me.getLat();//get user current latitude
         double pref = me.getPerferredDistance();//pref distance of user
@@ -42,7 +42,13 @@ public class GetInnocuous {
                 trueCan.add(nearby.get(i));//append compatiable user via distance, add to list
             }
         }
+        me.pushAllIntrestsToStack();
+        for (User u : trueCan) {
+            u.pushAllIntrestsToStack();
+        }
         NRank(trueCan, me);
+        sort(trueCan);
+        return trueCan;
     }
     public static void NRank(List<User> truecan, User me){//void since we pass by refrence
         List<TraitPopResult> meTrait = new ArrayList<>();
@@ -68,7 +74,20 @@ public class GetInnocuous {
                         truecan.get(u).setScore(score(oppTrait.get(t2).position(), oppsize));
                     t2++;
                 }
+                t++;
             }
        }
+    }
+    void sort(List<User> truecan){
+        int n = truecan.size();
+        for(int i = 1; i< n; i++){
+            User key = truecan.get(i);
+            int j = i-1;
+            while(j >= 0 && truecan.get(j).getScore() < key.getScore()){
+                truecan.set(j+1,truecan.get(j));
+                j=j-1; 
+            }
+            truecan.set(j+1,key);
+        }
     }
 }
