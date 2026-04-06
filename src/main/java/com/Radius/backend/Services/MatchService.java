@@ -4,6 +4,8 @@ import com.Radius.backend.Bases.UserRepository;
 import com.Radius.backend.Entity.User;
 import com.Radius.backend.Forumulas.GetInnocuous;
 import org.springframework.stereotype.Service;
+import java.util.ArrayList;
+import java.util.List;
 @Service
 public class MatchService {
 
@@ -15,7 +17,7 @@ public class MatchService {
         this.algo = new GetInnocuous(repo);
     }
 
-    public float findMyBestMatch(long myId){
+    public List<User> findMyBestMatch(long myId){
         User me = repo.findById(myId).orElseThrow();
         return algo.compatibility(me);
     }
