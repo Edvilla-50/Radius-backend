@@ -70,6 +70,15 @@ public class User {
     public double getLat(){
         return this.lat;
     }
+    public void setLat(double lat){
+        this.lat = lat;
+    }
+    public void setLon(double lon){
+        this.lon = lon;
+    }
+    public void setPerferredDistance(double perferredDistance){
+        this.perferredDistance = perferredDistance;
+    }
     public double getLon(){
         return this.lon;
     }
