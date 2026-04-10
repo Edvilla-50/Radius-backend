@@ -1,7 +1,7 @@
 package com.Radius.backend.Entity;
 
 import jakarta.persistence.*;//needed for that sweet sweet polymorphism
-import java.util.Set;//To not duplicate hobbies
+import java.util.List;//To not duplicate hobbies
 
 import com.Radius.backend.Aspects.Interests;
 import com.Radius.backend.Data_Structres.TraitStack;
@@ -30,16 +30,17 @@ public class User {
     private double score;
 
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(//silly ahh table that I made in data base, SQL am I right?
         name = "user_interests",
         joinColumns = @JoinColumn(name = "user_id"),
         inverseJoinColumns = @JoinColumn(name = "interest_id")
     )
-    private Set<InterestEntity> interests; //FIX to the polymorphism (at least faked)that JPA for some reason did not like
+    @OrderColumn(name = "order_index")
+    private List<InterestEntity> interests; //FIX to the polymorphism (at least faked)that JPA for some reason did not like
     public User() {}
 
-    public User(String name, int age, Set<InterestEntity> interests) {
+    public User(String name, int age, List<InterestEntity> interests) {
         this.name = name;
         this.age = age;
         this.interests = interests;
@@ -60,11 +61,11 @@ public class User {
         return age; 
     }
 
-    public Set<InterestEntity> getInterests() {
+    public List<InterestEntity> getInterests() {
         return interests;
     }
 
-    public void setInterests(Set<InterestEntity> interests) {
+    public void setInterests(List<InterestEntity> interests) {
         this.interests = interests;
     }
     public double getLat(){
@@ -96,8 +97,8 @@ public class User {
     }
     public void pushAllIntrestsToStack(){
         stack = new TraitStack();
-       for (InterestEntity interest : this.interests) {
-            stack.push(interest.getName());
+        for (int i = this.interests.size() - 1; i >= 0; i--) {
+            stack.push(this.interests.get(i).getName());
         }
     }
     public TraitPopResult popOnStack(){
@@ -107,10 +108,13 @@ public class User {
         return stack.getLength();
     }
     public void setScore(double score){
-        this.score = this.score+score;
+        this.score = score;
     }
     public double getScore(){
         return this.score;
+    }
+    public void resetScore(){
+        this.score = 0;
     }
 }
 
