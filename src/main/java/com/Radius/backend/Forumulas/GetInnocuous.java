@@ -38,13 +38,14 @@ public class GetInnocuous {
         for (int i = 0; i<nearby.size();i++){
             double dist = 0.0;
             dist = hs.haversine(me.getLat(),me.getLon(),nearby.get(i).getLat(),nearby.get(i).getLon());
-            if(dist<=me.getPerferredDistance()){
-                trueCan.add(nearby.get(i));//append compatiable user via distance, add to list
+            if(dist<=me.getPerferredDistance() && !nearby.get(i).getId().equals(me.getId())){
+                trueCan.add(nearby.get(i));
             }
         }
         me.pushAllIntrestsToStack();
         for (User u : trueCan) {
             u.pushAllIntrestsToStack();
+            u.resetScore();
         }
         NRank(trueCan, me);
         sort(trueCan);
@@ -58,6 +59,11 @@ public class GetInnocuous {
             meTrait.add(me.popOnStack());//metrait has all user traits from most important at front and least at back
             i--;
         }
+        double maxScore = 0.0;
+        for(int x = 0; x < size; x++){
+            maxScore += score(x, size);
+        }
+        System.out.println("size=" + size + " maxScore=" + maxScore);
         for(int u = 0; u<truecan.size();u++){
             List<TraitPopResult> oppTrait = new ArrayList<>();
             int t = truecan.get(u).getStackSize();//get canidate user stack size
@@ -66,16 +72,21 @@ public class GetInnocuous {
                 oppTrait.add(truecan.get(u).popOnStack());
                 t--;
             }
+            double total = 0.0;
             t=0;
             while(t<size){
                 int t2=0;
                 while(t2<oppsize){
-                    if(meTrait.get(t).trait().equals(oppTrait.get(t2).trait()))
+                    if(meTrait.get(t).trait().equals(oppTrait.get(t2).trait())){
                         truecan.get(u).setScore(score(oppTrait.get(t2).position(), oppsize));
+                        total += score(t, size); 
+                        break;
+                    }
                     t2++;
                 }
                 t++;
             }
+            truecan.get(u).setScore(total / maxScore);
        }
     }
     void sort(List<User> truecan){
