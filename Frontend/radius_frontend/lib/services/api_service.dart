@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService{
-  static const String baseUrl = "http://10.0.2.2:8000";
+  static const String baseUrl = "http://10.0.2.2:8080";
   //get matches for user
   static Future<List<dynamic>> getMatches(int userId)async{//signature, returns a list via json
     final response = await http.get(Uri.parse('$baseUrl/match/$userId'));//calls to backend
@@ -14,7 +14,7 @@ class ApiService{
     }
   }
   //update location
-  static Future <void> updateLocation(int, userId, double lat, double lon) async{//signature
+  static Future <void> updateLocation(int userId, double lat, double lon) async{//signature
     final response = await http.post(Uri.parse('$baseUrl/user/$userId/location'),//post to update rather than get to fetch
     headers: {'Content-type': 'application/json'},//format json objects
     body: jsonEncode({'lat': lat, 'lon': lon}),
