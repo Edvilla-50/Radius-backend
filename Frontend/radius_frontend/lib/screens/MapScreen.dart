@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import '../services/api_service.dart';
+import '../services/ApiService.dart';
 import 'package:latlong2/latlong.dart';
+import '../services/LocationService.dart';
+import 'dart:async';
 //inherit StatefulWidget class
 class MapScreen extends StatefulWidget{
   final int userId;//atrributes to make it unique
   const MapScreen ({super.key, required this.userId});//constuctir
-
   @override//first method to impliment
   State<MapScreen> createState()  => _MapScreenState();
 }
@@ -17,27 +18,44 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
   List<dynamic> _matches = [];
   bool _scanning = false;
   final MapController _mapController = MapController();
-
+  StreamSubscription<Position>? _locationStream;
   @override//declare state
   void initState(){
     super.initState();
     _getLocation();
   }
 
-  Future<void> _getLocation() async{//getlocation from backend
-    LocationPermission permission = await Geolocator.requestPermission();//request user permission to get location
-    Position position = await Geolocator.getCurrentPosition();
-    setState((){//call super variable Latlng
-      _myLocation = LatLng(position.latitude, position.longitude);//call method to get location
+  Future<void> _getLocation() async {
+    try {
+      await Geolocator.requestPermission;
+
+      final position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _myLocation = LatLng(position.latitude, position.longitude);
       });
-      await ApiService.updateLocation(widget.userId, position.latitude,position.longitude);//update widget based on api response
-      _mapController.move(_myLocation!,15.0);//update map
+      _mapController.move(_myLocation!, 15.0);
+      await ApiService.updateLocation(widget.userId, position.latitude, position.longitude);
+      _locationStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        ),
+      ).listen((Position position) async{
+        setState(() {
+          _myLocation = LatLng(position.latitude, position.longitude);
+        });
+        await ApiService.updateLocation(widget.userId, position.latitude, position.longitude);
+      });
+    } catch(e){
+      print('error: $e');
+    }
   }
 
    Future<void> _scan() async {
     setState(() => _scanning = true);
     try {
       final matches = await ApiService.getMatches(widget.userId);
+      print('Matches recieved: $matches');
       setState(() {
         _matches = matches;
         _scanning = false;
@@ -72,13 +90,6 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
                       child: const Icon(Icons.person_pin_circle,
                         color: Colors.blue, size: 40),
                     ),
-                  ..._matches.map((match) => Marker(
-                    point: LatLng(match['lat'], match['lon']),
-                    width: 40,
-                    height: 40,
-                    child: const Icon(Icons.person_pin_circle,
-                      color: Colors.red, size: 40),
-                  )),
                 ],
               ),
             ],
