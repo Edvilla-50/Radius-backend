@@ -1,0 +1,288 @@
+#
+# There is insufficient memory for the Java Runtime Environment to continue.
+# Native memory allocation (malloc) failed to allocate 1048576 bytes. Error detail: AllocateHeap
+# Possible reasons:
+#   The system is out of physical RAM or swap space
+#   This process is running with CompressedOops enabled, and the Java Heap may be blocking the growth of the native heap
+# Possible solutions:
+#   Reduce memory load on the system
+#   Increase physical memory or swap space
+#   Check if swap backing store is full
+#   Decrease Java heap size (-Xmx/-Xms)
+#   Decrease number of Java threads
+#   Decrease Java thread stack sizes (-Xss)
+#   Set larger code cache with -XX:ReservedCodeCacheSize=
+#   JVM is running with Unscaled Compressed Oops mode in which the Java heap is
+#     placed in the first 4GB address space. The Java Heap base address is the
+#     maximum limit for the native heap growth. Please use -XX:HeapBaseMinAddress
+#     to set the Java Heap base and to place the Java Heap above 4GB virtual address.
+# This output file may be truncated or incomplete.
+#
+#  Out of Memory Error (allocation.cpp:44), pid=31676, tid=3004
+#
+# JRE version:  (17.0.18+8) (build )
+# Java VM: OpenJDK 64-Bit Server VM (17.0.18+8, mixed mode, sharing, tiered, compressed oops, compressed class ptrs, g1 gc, windows-amd64)
+# No core dump will be written. Minidumps are not enabled by default on client versions of Windows
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: -agentlib:jdwp=transport=dt_socket,server=n,suspend=y,address=localhost:59135 -XX:+ShowCodeDetailsInExceptionMessages -Dspring.jmx.enabled=true -Dmanagement.endpoints.jmx.exposure.include=* -Dspring.application.admin.enabled=true -Dspring.boot.project.name=Radius -Djava.rmi.server.hostname=localhost -Dcom.sun.management.jmxremote.port=10000 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false com.Radius.backend.RadiusApplication
+
+Host: Intel(R) Core(TM) i9-14900HX, 32 cores, 31G,  Windows 11 , 64 bit Build 26100 (10.0.26100.8246)
+Time: Thu Apr 16 20:06:25 2026 Mountain Daylight Time elapsed time: 0.023992 seconds (0d 0h 0m 0s)
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x000002400e766730):  JavaThread "Unknown thread" [_thread_in_vm, id=3004, stack(0x00000088bdd00000,0x00000088bde00000)]
+
+Stack: [0x00000088bdd00000,0x00000088bde00000]
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+V  [jvm.dll+0x6846f9]
+V  [jvm.dll+0x839ea5]
+V  [jvm.dll+0x83b91e]
+V  [jvm.dll+0x83bfa3]
+V  [jvm.dll+0x248eff]
+V  [jvm.dll+0xa7b47]
+V  [jvm.dll+0x2dbef6]
+V  [jvm.dll+0x80cd2f]
+V  [jvm.dll+0x36ea21]
+V  [jvm.dll+0x7eb945]
+V  [jvm.dll+0x3f462b]
+V  [jvm.dll+0x3f6111]
+C  [jli.dll+0x52d0]
+C  [ucrtbase.dll+0x37b0]
+C  [KERNEL32.DLL+0x2e8d7]
+C  [ntdll.dll+0x8c3fc]
+
+
+---------------  P R O C E S S  ---------------
+
+Threads class SMR info:
+_java_thread_list=0x00007ffff7a87f58, length=0, elements={
+}
+
+Java Threads: ( => current thread )
+
+Other Threads:
+
+=>0x000002400e766730 (exited) JavaThread "Unknown thread" [_thread_in_vm, id=3004, stack(0x00000088bdd00000,0x00000088bde00000)]
+
+Threads with active compile tasks:
+
+VM state: not at safepoint (not fully initialized)
+
+VM Mutex/Monitor currently owned by a thread: None
+
+Heap address: 0x0000000000000000, size: 0 MB, Compressed Oops mode: 32-bit
+
+CDS archive(s) mapped at: [0x0000000000000000-0x0000000000000000-0x0000000000000000), size 0, SharedBaseAddress: 0x0000000800000000, ArchiveRelocationMode: 1.
+Narrow klass base: 0x0000000000000000, Narrow klass shift: 0, Narrow klass range: 0x0
+
+GC Precious Log:
+<Empty>
+
+GC Heap History (0 events):
+No events
+
+Dll operation events (1 events):
+Event: 0.016 Loaded shared library C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\java.dll
+
+Deoptimization events (0 events):
+No events
+
+Classes loaded (0 events):
+No events
+
+Classes unloaded (0 events):
+No events
+
+Classes redefined (0 events):
+No events
+
+Internal exceptions (0 events):
+No events
+
+VM Operations (0 events):
+No events
+
+Memory protections (0 events):
+No events
+
+Nmethod flushes (0 events):
+No events
+
+Events (0 events):
+No events
+
+
+Dynamic libraries:
+0x00007ff799fb0000 - 0x00007ff799fbe000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\java.exe
+0x00007ff969340000 - 0x00007ff9695a7000 	C:\WINDOWS\SYSTEM32\ntdll.dll
+0x00007ff9682c0000 - 0x00007ff968389000 	C:\WINDOWS\System32\KERNEL32.DLL
+0x00007ff966ab0000 - 0x00007ff966ea4000 	C:\WINDOWS\System32\KERNELBASE.dll
+0x00007ff965f90000 - 0x00007ff9660db000 	C:\WINDOWS\System32\ucrtbase.dll
+0x00007ff92ddf0000 - 0x00007ff92de0e000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\VCRUNTIME140.dll
+0x00007ff925bb0000 - 0x00007ff925bc8000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\jli.dll
+0x00007ff968060000 - 0x00007ff968225000 	C:\WINDOWS\System32\USER32.dll
+0x00007ff94a5a0000 - 0x00007ff94a833000 	C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.8115_none_3e075c82e3354f9c\COMCTL32.dll
+0x00007ff9660e0000 - 0x00007ff966107000 	C:\WINDOWS\System32\win32u.dll
+0x00007ff968030000 - 0x00007ff96805b000 	C:\WINDOWS\System32\GDI32.dll
+0x00007ff967190000 - 0x00007ff967239000 	C:\WINDOWS\System32\msvcrt.dll
+0x00007ff966980000 - 0x00007ff966aab000 	C:\WINDOWS\System32\gdi32full.dll
+0x00007ff965c10000 - 0x00007ff965cb3000 	C:\WINDOWS\System32\msvcp_win.dll
+0x00007ff968aa0000 - 0x00007ff968ad2000 	C:\WINDOWS\System32\IMM32.DLL
+0x00007ff94bce0000 - 0x00007ff94bcec000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\vcruntime140_1.dll
+0x00007ff923a10000 - 0x00007ff923a9d000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\msvcp140.dll
+0x00007ffff6f50000 - 0x00007ffff7bbb000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\server\jvm.dll
+0x00007ff968b00000 - 0x00007ff968bb6000 	C:\WINDOWS\System32\ADVAPI32.dll
+0x00007ff9670d0000 - 0x00007ff967177000 	C:\WINDOWS\System32\sechost.dll
+0x00007ff967b50000 - 0x00007ff967c68000 	C:\WINDOWS\System32\RPCRT4.dll
+0x00007ff9683a0000 - 0x00007ff968420000 	C:\WINDOWS\System32\WS2_32.dll
+0x00007ff9652a0000 - 0x00007ff9652fe000 	C:\WINDOWS\SYSTEM32\POWRPROF.dll
+0x00007ff95e2e0000 - 0x00007ff95e2eb000 	C:\WINDOWS\SYSTEM32\VERSION.dll
+0x00007ff95cb60000 - 0x00007ff95cb96000 	C:\WINDOWS\SYSTEM32\WINMM.dll
+0x00007ff965110000 - 0x00007ff965124000 	C:\WINDOWS\SYSTEM32\UMPDC.dll
+0x00007ff9649a0000 - 0x00007ff9649bb000 	C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+0x00007ff92dde0000 - 0x00007ff92ddea000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\jimage.dll
+0x00007ff963880000 - 0x00007ff963ac2000 	C:\WINDOWS\SYSTEM32\DBGHELP.DLL
+0x00007ff968f20000 - 0x00007ff9692a2000 	C:\WINDOWS\System32\combase.dll
+0x00007ff9688c0000 - 0x00007ff968998000 	C:\WINDOWS\System32\OLEAUT32.dll
+0x00007ff91f7d0000 - 0x00007ff91f80b000 	C:\WINDOWS\SYSTEM32\dbgcore.DLL
+0x00007ff967020000 - 0x00007ff9670c5000 	C:\WINDOWS\System32\bcryptPrimitives.dll
+0x00007ff921060000 - 0x00007ff92109b000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\jdwp.dll
+0x00007ff921030000 - 0x00007ff921055000 	C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\java.dll
+
+dbghelp: loaded successfully - version: 4.0.5 - missing functions: none
+symbol engine: initialized successfully - sym options: 0x614 - pdb path: .;C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin;C:\WINDOWS\SYSTEM32;C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.8115_none_3e075c82e3354f9c;C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin\server
+
+VM Arguments:
+jvm_args: -agentlib:jdwp=transport=dt_socket,server=n,suspend=y,address=localhost:59135 -XX:+ShowCodeDetailsInExceptionMessages -Dspring.jmx.enabled=true -Dmanagement.endpoints.jmx.exposure.include=* -Dspring.application.admin.enabled=true -Dspring.boot.project.name=Radius -Djava.rmi.server.hostname=localhost -Dcom.sun.management.jmxremote.port=10000 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false 
+java_command: com.Radius.backend.RadiusApplication
+java_class_path (initial): C:\Users\eddie\Desktop\Radius_bakend\Radius\target\classes;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-starter-actuator\4.0.1\spring-boot-starter-actuator-4.0.1.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-starter\4.0.1\spring-boot-starter-4.0.1.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-starter-logging\4.0.1\spring-boot-starter-logging-4.0.1.jar;C:\Users\eddie\.m2\repository\ch\qos\logback\logback-classic\1.5.22\logback-classic-1.5.22.jar;C:\Users\eddie\.m2\repository\ch\qos\logback\logback-core\1.5.22\logback-core-1.5.22.jar;C:\Users\eddie\.m2\repository\org\apache\logging\log4j\log4j-to-slf4j\2.25.3\log4j-to-slf4j-2.25.3.jar;C:\Users\eddie\.m2\repository\org\apache\logging\log4j\log4j-api\2.25.3\log4j-api-2.25.3.jar;C:\Users\eddie\.m2\repository\org\slf4j\jul-to-slf4j\2.0.17\jul-to-slf4j-2.0.17.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-autoconfigure\4.0.1\spring-boot-autoconfigure-4.0.1.jar;C:\Users\eddie\.m2\repository\jakarta\annotation\jakarta.annotation-api\3.0.0\jakarta.annotation-api-3.0.0.jar;C:\Users\eddie\.m2\repository\org\yaml\snakeyaml\2.5\snakeyaml-2.5.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-starter-micrometer-metrics\4.0.1\spring-boot-starter-micrometer-metrics-4.0.1.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-micrometer-metrics\4.0.1\spring-boot-micrometer-metrics-4.0.1.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-micrometer-observation\4.0.1\spring-boot-micrometer-observation-4.0.1.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-actuator-autoconfigure\4.0.1\spring-boot-actuator-autoconfigure-4.0.1.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-actuator\4.0.1\spring-boot-actuator-4.0.1.jar;C:\Users\eddie\.m2\repository\org\springframework\boot\spring-boot-health\4.0.1\spring-boot-health-
+Launcher Type: SUN_STANDARD
+
+[Global flags]
+     intx CICompilerCount                          = 15                                        {product} {ergonomic}
+     uint ConcGCThreads                            = 6                                         {product} {ergonomic}
+     uint G1ConcRefinementThreads                  = 23                                        {product} {ergonomic}
+   size_t G1HeapRegionSize                         = 4194304                                   {product} {ergonomic}
+    uintx GCDrainStackTargetSize                   = 64                                        {product} {ergonomic}
+   size_t InitialHeapSize                          = 532676608                                 {product} {ergonomic}
+     bool ManagementServer                         = true                                      {product} {command line}
+   size_t MarkStackSize                            = 4194304                                   {product} {ergonomic}
+   size_t MaxHeapSize                              = 8514437120                                {product} {ergonomic}
+   size_t MinHeapDeltaBytes                        = 4194304                                   {product} {ergonomic}
+   size_t MinHeapSize                              = 8388608                                   {product} {ergonomic}
+    uintx NonNMethodCodeHeapSize                   = 8192380                                {pd product} {ergonomic}
+    uintx NonProfiledCodeHeapSize                  = 121732930                              {pd product} {ergonomic}
+    uintx ProfiledCodeHeapSize                     = 121732930                              {pd product} {ergonomic}
+    uintx ReservedCodeCacheSize                    = 251658240                              {pd product} {ergonomic}
+     bool SegmentedCodeCache                       = true                                      {product} {ergonomic}
+     bool ShowCodeDetailsInExceptionMessages       = true                                   {manageable} {command line}
+   size_t SoftMaxHeapSize                          = 8514437120                             {manageable} {ergonomic}
+     bool UseCompressedClassPointers               = true                           {product lp64_product} {ergonomic}
+     bool UseCompressedOops                        = true                           {product lp64_product} {ergonomic}
+     bool UseG1GC                                  = true                                      {product} {ergonomic}
+     bool UseLargePagesIndividualAllocation        = false                                  {pd product} {ergonomic}
+
+Logging:
+Log output configuration:
+ #0: stdout all=warning uptime,level,tags
+ #1: stderr all=off uptime,level,tags
+
+Environment Variables:
+PATH=c:\Users\eddie\.vscode\extensions\vadimcn.vscode-lldb-1.12.1\bin;C:\src\flutter\flutter\bin\;c:\Users\eddie\AppData\Roaming\Code\User\globalStorage\github.copilot-chat\debugCommand;c:\Users\eddie\AppData\Roaming\Code\User\globalStorage\github.copilot-chat\copilotCli;C:\Users\eddie\AppData\Local\Programs\Microsoft VS Code;C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot\bin;C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot\bin;C:\Python313\Scripts\;C:\Python313\;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\dotnet\;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\Git\cmd;C:\Program Files\Java\jdk-24\bin;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\;C:\msys64\ucrt64\bin;C:\Program Files\nodejs\;C:\ProgramData\chocolatey\bin;C:\src\flutter\flutter\bin;C:\Program Files\Apache\Maven\apache-maven-3.9.11\bin;C:\Program Files\Wolfram Research\WolframScript\;C:\Users\eddie\scoop\shims;C:\Program Files\MySQL\MySQL Shell 9.6\bin\;C:\Python313\Scripts\;C:\Python313\;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\dotnet\;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\Git\cmd;C:\Program Files\Java\jdk-24\bin;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\;C:\msys64\ucrt64\bin;C:\Program Files\nodejs\;C:\ProgramData\chocolatey\bin;C:\Users\eddie\AppData\Local\Microsoft\WindowsApps;C:\Users\eddie\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\eddie\Desktop\flutter\bin;C:\MinGW\bin;C:\Users\eddie\AppData\Roaming\npm;C:\src\flutter\bin;C:\Users\eddie\AppData\Local\GitHubDesktop\bin;c:\Users\eddie\.vscode\extensions\vscjava.vscode-java-debug-0.59.0\bundled\scripts\noConfigScripts
+USERNAME=eddie
+LANG=en_US.UTF-8
+OS=Windows_NT
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 183 Stepping 1, GenuineIntel
+TMP=C:\Users\eddie\AppData\Local\Temp
+TEMP=C:\Users\eddie\AppData\Local\Temp
+
+
+
+Periodic native trim disabled
+
+
+---------------  S Y S T E M  ---------------
+
+OS:
+ Windows 11 , 64 bit Build 26100 (10.0.26100.8246)
+OS uptime: 0 days 8:01 hours
+Hyper-V role detected
+
+CPU: total 32 (initial active 32) (16 cores per cpu, 2 threads per core) family 6 model 183 stepping 1 microcode 0x116, cx8, cmov, fxsr, ht, mmx, 3dnowpref, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, lzcnt, tsc, tscinvbit, avx, avx2, aes, erms, clmul, bmi1, bmi2, adx, sha, fma, vzeroupper, clflush, clflushopt, clwb, hv
+Processor Information for processor 0
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 1
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 2
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 3
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 4
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 5
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 6
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 7
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 8
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 9
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 10
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 11
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 12
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 13
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 14
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 15
+  Max Mhz: 2200, Current Mhz: 2200, Mhz Limit: 2200
+Processor Information for processor 16
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 17
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 18
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 19
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 20
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 21
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 22
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 23
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 24
+  Max Mhz: 2200, Current Mhz: 1500, Mhz Limit: 1584
+Processor Information for processor 25
+  Max Mhz: 2200, Current Mhz: 1500, Mhz Limit: 1584
+Processor Information for processor 26
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 27
+  Max Mhz: 2200, Current Mhz: 1500, Mhz Limit: 1584
+Processor Information for processor 28
+  Max Mhz: 2200, Current Mhz: 1500, Mhz Limit: 1584
+Processor Information for processor 29
+  Max Mhz: 2200, Current Mhz: 1500, Mhz Limit: 1584
+Processor Information for processor 30
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+Processor Information for processor 31
+  Max Mhz: 2200, Current Mhz: 1600, Mhz Limit: 1584
+
+Memory: 4k page, system-wide physical 32468M (6648M free)
+TotalPageFile size 36866M (AvailPageFile size 33M)
+current process WorkingSet (physical memory assigned to process): 12M, peak: 12M
+current process commit charge ("private bytes"): 25M, peak: 26M
+
+vm_info: OpenJDK 64-Bit Server VM (17.0.18+8) for windows-amd64 JRE (17.0.18+8), built on Jan 20 2026 22:28:22 by "admin" with MS VC++ 17.12 (VS2022)
+
+END.

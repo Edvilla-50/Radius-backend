@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'MapScreen.dart';
+import 'package:radius_frontend/screens/EmergencyScreen.dart';
+
+
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,16 +15,20 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int index = 0;
 
-  final pages = const [
+  final pages = [
     MapScreen(userId: 71),
-    Center(child: Text("Friends")),
+    Center(child: Text("Messages")),
     Center(child: Text("Profile")),
+    EmergencyScreen(userId: 71),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: pages[index],
+      body: IndexedStack(
+        index: index,
+        children: pages,
+      ),
 
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
@@ -31,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(icon: Icon(Icons.map), label: 'Map'),
           NavigationDestination(icon: Icon(Icons.message), label: 'Messages'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+          NavigationDestination(icon: Icon(Icons.emergency,color: Colors.red), selectedIcon: Icon(Icons.emergency, color: Colors.red), label:'Emergency'),
         ],
       ),
     );

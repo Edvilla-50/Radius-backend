@@ -92,9 +92,6 @@ public class User {
     public int maxMinAgePref(){
         return this.maxAgePref;
     }
-    public String getEmergencyOne(){
-        return this.emergencyPhoneOne;
-    }
     public void pushAllIntrestsToStack(){
         stack = new TraitStack();
         for (int i = this.interests.size() - 1; i >= 0; i--) {
@@ -116,5 +113,21 @@ public class User {
     public void resetScore(){
         this.score = 0;
     }
+    public String getEmergencyPhoneOne() {
+        return emergencyPhoneOne;
+    }
+
+    public void setEmergencyPhoneOne(String emergencyPhoneOne) {
+        this.emergencyPhoneOne = emergencyPhoneOne;
+    }
+
+    public String getEmergencyPhoneTwo() {
+        return emergencyPhoneTwo;
+    }
+
+    public void setEmergencyPhoneTwo(String emergencyPhoneTwo) {
+        this.emergencyPhoneTwo = emergencyPhoneTwo;
+    }
+
 }
 
