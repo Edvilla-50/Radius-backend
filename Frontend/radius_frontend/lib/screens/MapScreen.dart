@@ -51,6 +51,18 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
     }
   }
 
+  Future<void> _sendRequest(int matchId) async{
+    try{
+      await ApiService.sendMeetRquest(widget.userId, matchId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request Sent')),
+      );
+    }catch(e){
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error sending request: $e")),
+      );
+    }
+  }
    Future<void> _scan() async {
     setState(() => _scanning = true);
     try {
@@ -136,13 +148,25 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
                     return ListTile(
                       leading: const Icon(Icons.person, color: Colors.blue),
                       title: Text(match['name']),
-                      trailing: Text(
+                      subtitle: Text(
                         '${(match['score'] * 100).toStringAsFixed(0)}%',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
                         ),
                       ),
+                      trailing: ElevatedButton(
+                        onPressed: () => _sendRequest(match['id']),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.lightGreenAccent,
+                          padding: const EdgeInsets.symmetric(horizontal:12,vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8),)
+                        ),
+                        child: const Text(
+                          "Request"
+                          style: TextStyle(color: Colors.white),
+                        )
+                      )
                     );
                   },
                 ),
