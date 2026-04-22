@@ -52,4 +52,19 @@ class ApiService {
 
     return jsonDecode(response.body);
   }
+
+  static Future<void> sendMeetRequest(int userId, int matchId) async{
+    final url = Uri.parse('$baseUrl/meet/request');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'matchId': matchId,
+      }),
+    );
+    if(response.statusCode != 200){
+      throw Exception('Failed to send meet request');
+    }
+  }
 }
