@@ -53,7 +53,7 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
 
   Future<void> _sendRequest(int matchId) async{
     try{
-      await ApiService.sendMeetRquest(widget.userId, matchId);
+      await ApiService.sendMeetRequest(widget.userId, matchId);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Request Sent')),
       );
@@ -163,7 +163,7 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8),)
                         ),
                         child: const Text(
-                          "Request"
+                          "Request",
                           style: TextStyle(color: Colors.white),
                         )
                       )
