@@ -67,4 +67,31 @@ class ApiService {
       throw Exception('Failed to send meet request');
     }
   }
+    static Future<Map<String, dynamic>> getUser(int userId) async {
+      final response = await http.get(Uri.parse('$baseUrl/user/$userId'));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to get user');
+      }
+  }
+
+  static Future<void> updateInterests(int userId, List<int> interestIds) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/user/$userId/interests'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(interestIds),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update interests');
+    }
+  }
+  static Future<List<dynamic>> getAllInterests() async {
+  final response = await http.get(Uri.parse('$baseUrl/interests'));
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Failed to get interests');
+  }
+}
 }
