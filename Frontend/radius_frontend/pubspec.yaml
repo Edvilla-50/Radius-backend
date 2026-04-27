@@ -39,6 +39,7 @@ dependencies:
   latlong2: ^0.9.0
   geolocator: ^11.0.0
   http: ^1.6.0
+  drag_and_drop_lists: ^0.4.2
 
 
 
