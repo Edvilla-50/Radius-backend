@@ -50,6 +50,69 @@ class _RankScreenState extends State<RankScreen> {
     setState(() => _saving = false);
   }
 
+  Future<void> _showInterestDetailsDialog(Map<String, dynamic> interest) async{
+    String? difficulty;
+    bool moneyNeeded = false;
+    bool disAccessible = false;
+    String meetUpTime = '';
+
+    await showDialog(
+      context: context,
+      builder:(context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text ('Customize ${interest['name']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children:[
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: 'Difficulty'),
+                items: ['Easy', 'Medium', 'Hard']
+                .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                .toList(),
+                onChanged: (val) => setDialogState(() => difficulty = val),
+              ),
+              SwitchListTile(
+                title: const Text('Costs Money'),
+                value: moneyNeeded,
+                onChanged: (val)=> setDialogState(()=> moneyNeeded = val),
+              ),
+              SwitchListTile(
+                title: const Text('Accessible to people with disabilities'),
+                value: disAccessible,
+                onChanged: (val) => setDialogState(() => disAccessible = val),
+              ),
+              TextField(
+                decoration: const InputDecoration(labelText: 'Meet up Time (e.g evenings)'),
+                onChanged: (val) => meetUpTime = val,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text ('Cancel'),
+            ),
+           ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _interests.add({
+                    ...interest,
+                    'difficulty': difficulty,
+                    'moneyNeeded': moneyNeeded,
+                    'disAccessible': disAccessible,
+                    'meetUpTime': meetUpTime,
+                  });
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Add'), // ✅
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showAddInterestDialog() async {
     final allInterests = await ApiService.getAllInterests();
     final currentIds = _interests.map((i) => i['id']).toSet();
@@ -78,10 +141,8 @@ class _RankScreenState extends State<RankScreen> {
               return ListTile(
                 title: Text(interest['name']),
                 onTap: () {
-                  setState(() {
-                    _interests.add(Map<String, dynamic>.from(interest));
-                  });
                   Navigator.pop(context);
+                  _showInterestDetailsDialog(interest);
                 },
               );
             },
