@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.*;
 
 import com.Radius.backend.Entity.InterestEntity;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/user")
@@ -59,5 +60,12 @@ public class UserController {
     @GetMapping("/interests/all")
     public List<InterestEntity> getAllInterests(){
         return interestRepository.findAll();
+    }
+    @PutMapping("/{id}/profile-html")
+    public User updateProfileHtml(@PathVariable long id, @RequestBody Map<String, String> body){
+        User user = repo.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found: " + id));
+        user.setHtmlProfile(body.get("html"));
+        return repo.save(user);
     }
 }

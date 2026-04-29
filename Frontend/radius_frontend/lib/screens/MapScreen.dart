@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import '../services/ApiService.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/LocationService.dart';
+import 'ProfilePreviewScreen.dart';
 import 'dart:async';
 //inherit StatefulWidget class
 class MapScreen extends StatefulWidget{
@@ -155,6 +156,16 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
                           color: Colors.blue,
                         ),
                       ),
+                      onTap: (){
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProfilePreviewScreen(
+                              html: match['htmlProfile'] ??'<h1>${match['name']}</h1><p>No profile yet</p>',
+                            ),
+                          ),
+                        );
+                      },
                       trailing: ElevatedButton(
                         onPressed: () => _sendRequest(match['id']),
                         style: ElevatedButton.styleFrom(

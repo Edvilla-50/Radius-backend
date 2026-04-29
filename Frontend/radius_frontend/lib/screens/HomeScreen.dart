@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'MapScreen.dart';
 import 'package:radius_frontend/screens/EmergencyScreen.dart';
 import 'package:radius_frontend/screens/RankScreen.dart';
-
+import 'package:radius_frontend/screens/ProfileScreen.dart';
 class HomeScreen extends StatefulWidget {  
   const HomeScreen({super.key});
 
@@ -15,10 +15,10 @@ class _HomeScreenState extends State<HomeScreen>{
 
   @override
   Widget build(BuildContext context) {
-    final pages = [   // ✅ moved inside build
+    final pages = [   
       MapScreen(userId: 71),
       Center(child: Text("Messages")),
-      Center(child: Text("Profile")),
+      ProfileScreen(userId: 71),
       RankScreen(userId: 71),
       EmergencyScreen(userId: 71),
     ];
