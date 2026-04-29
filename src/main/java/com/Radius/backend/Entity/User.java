@@ -38,6 +38,10 @@ public class User {
     )
     @OrderColumn(name = "order_index")
     private List<InterestEntity> interests; //FIX to the polymorphism (at least faked)that JPA for some reason did not like
+    
+    @Column(columnDefinition = "TEXT")
+    private String htmlProfile;
+    
     public User() {}
 
     public User(String name, int age, List<InterestEntity> interests) {
@@ -128,6 +132,11 @@ public class User {
     public void setEmergencyPhoneTwo(String emergencyPhoneTwo) {
         this.emergencyPhoneTwo = emergencyPhoneTwo;
     }
-
+    public String getHtmlProfile(){
+        return this.htmlProfile;
+    }
+    public void setHtmlProfile(String htmlProfile){
+        this.htmlProfile = htmlProfile;
+    }
 }
 
