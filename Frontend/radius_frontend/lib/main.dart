@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/HomeScreen.dart';
-
+import 'screens/LoginScreen.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -16,7 +16,11 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const HomeScreen(), 
+      initialRoute: '/',
+      routes:{
+        '/': (context) => LoginScreen(),
+        '/home': (context) => const HomeScreen(),
+      } 
     );
   }
 }
