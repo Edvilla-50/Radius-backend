@@ -93,7 +93,7 @@ public class User {
     public int getMinAgePref(){
         return this.minAgePref;
     }
-    public int maxMinAgePref(){
+    public int getMaxAgePref(){
         return this.maxAgePref;
     }
     public void pushAllIntrestsToStack(){

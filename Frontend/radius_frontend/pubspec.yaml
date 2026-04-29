@@ -41,7 +41,7 @@ dependencies:
   http: ^1.6.0
   drag_and_drop_lists: ^0.4.2
   webview_flutter: ^4.4.0
-
+  shared_preferences: ^2.2.2
 
 
 dev_dependencies:

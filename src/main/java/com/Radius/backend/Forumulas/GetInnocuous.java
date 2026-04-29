@@ -49,7 +49,9 @@ public class GetInnocuous {
         }
         NRank(trueCan, me);
         sort(trueCan);
+        System.out.println("User " + me.getName() + " interests loaded = " + me.getInterests().size());
         return trueCan;
+        
     }
     public static void NRank(List<User> truecan, User me){//void since we pass by refrence
         List<TraitPopResult> meTrait = new ArrayList<>();
