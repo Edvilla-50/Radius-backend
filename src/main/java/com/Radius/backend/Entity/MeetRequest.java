@@ -13,6 +13,13 @@ public class MeetRequest {
     private int requesterId;
     private int receiverId;
     private String status;
+    public MeetRequest() {}//in case hibernate throws no default
+
+    public MeetRequest(int requesterId, int receiverId, String status){
+        this.requesterId = requesterId;
+        this.receiverId = receiverId;
+        this.status = status;
+    }
 
     public int getId(){
         return id;
@@ -23,7 +30,7 @@ public class MeetRequest {
     public void setRequesterId(int Rid){
         this.requesterId = Rid;
     }
-    public void setRecieverId(int Sid){
+    public void setReceiverId(int Sid){
         this.receiverId = Sid;
     }
     public int getReceiverId(){

@@ -17,6 +17,7 @@ public class InterestEntity {
     private String difficulty;
     private String state;
     private String meetUpTime;
+    private String category;
 
     public InterestEntity() {}
     public InterestEntity(String name) { 
@@ -61,5 +62,11 @@ public class InterestEntity {
     }
     public void setMeetUpTime(String meetUpTime) { 
         this.meetUpTime = meetUpTime; 
+    }
+    public void setCategory(String category){
+        this.category = category;
+    }
+    public String getCategory(){
+        return this.category;
     }
 }
