@@ -14,7 +14,7 @@ public class FourSquareService {
 
     // 🔐 This MUST be your SERVICE KEY (not fsq3...)
     @Value("${foursquare.apiKey}")
-    private String apiKey = "RO5ZMGLCR33VA4U2XFRQCOMUKWTMMJ2R0K0AGUAGCFGSQAQO";
+    private String apiKey;
 
     public List<Map<String, Object>> getNearbyPlaces(double lat, double lon) {
     System.out.println("FOURSQUARE KEY LOADED: " + apiKey);
@@ -31,7 +31,7 @@ public class FourSquareService {
     headers.set("Authorization", "Bearer " + apiKey.trim());
     headers.set("X-Places-Api-Version", "2025-06-17");
     headers.set("Accept", "application/json");
-    
+
 
 
     HttpEntity<String> entity = new HttpEntity<>(headers);
