@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../services/LocationService.dart';
 import 'ProfilePreviewScreen.dart';
 import 'dart:async';
+import 'SuggestionsScreen.dart';
 //inherit StatefulWidget class
 class MapScreen extends StatefulWidget{
   final int userId;//atrributes to make it unique
@@ -28,7 +29,7 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
 
   Future<void> _getLocation() async {
     try {
-      await Geolocator.requestPermission;
+      await Geolocator.requestPermission();
 
       final position = await Geolocator.getCurrentPosition();
       setState(() {
@@ -58,11 +59,38 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Request Sent')),
       );
+
+      _waitForMutual(matchId);
+
     }catch(e){
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error sending request: $e")),
+        const SnackBar(content: Text('Error sending request'))
       );
     }
+  }
+  Future<void> _waitForMutual(int matchId) async{
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('waiting for mutual acceptance....')),
+    );
+    bool mutual = false;
+
+    while(!mutual){
+      await Future.delayed(const Duration(seconds: 3));
+
+      mutual = await ApiService().checkMutual(widget.userId, matchId);
+    }
+      if(!mounted){
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SuggestionsScreen(
+            userId: widget.userId,
+            matchId: matchId,
+          ),
+        ),
+      );
   }
    Future<void> _scan() async {
     setState(() => _scanning = true);
@@ -167,7 +195,7 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
                         );
                       },
                       trailing: ElevatedButton(
-                        onPressed: () => _sendRequest(match['id']),
+                        onPressed: () => _sendRequest(match['id'] as int),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.lightGreenAccent,
                           padding: const EdgeInsets.symmetric(horizontal:12,vertical: 8),
