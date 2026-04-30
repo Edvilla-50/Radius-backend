@@ -18,6 +18,9 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.web.util.UriComponentsBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Service
 public class MeetService {
     @Autowired
@@ -63,16 +66,23 @@ public class MeetService {
         map.put("lon", midLon);
         return map;
     }
-    public JsonNode getSuggestions(double lat, double lon) {
-        String url = "https://api.foursquare.com/v3/places/search?ll=" 
-                    + lat + "," + lon + "&radius=1500&limit=10";
+    public Map<String, Object> getSuggestions(double lat, double lon) {
+        String url = UriComponentsBuilder
+                .fromUriString("https://places-api.foursquare.com/places/search")
+                .queryParam("ll", lat + "," + lon)
+                .queryParam("radius", 1500)
+                .queryParam("limit", 10)
+                .toUriString();
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", foursquareApiKey);
+        headers.set("Authorization", "Bearer " + foursquareApiKey.trim());
+        headers.set("X-Places-Api-Version", "2025-06-17");
+        headers.set("Accept", "application/json");
+
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         RestTemplate rest = new RestTemplate();
-        ResponseEntity<JsonNode> response = rest.exchange(url, HttpMethod.GET, entity, JsonNode.class);
+        ResponseEntity<Map> response = rest.exchange(url, HttpMethod.GET, entity, Map.class);
 
         return response.getBody();
     }
@@ -86,20 +96,29 @@ public class MeetService {
 
         return categoriesA.stream().filter(categoriesB::contains).distinct().toList();
     }
-    public JsonNode getSuggestionsByQuery(double lat, double lon, String query) {
-        String url = "https://api.foursquare.com/v3/places/search?ll="+ lat + "," + lon + "&query=" + query + "&radius=1500&limit=10";
+    public Map<String, Object> getSuggestionsByQuery(double lat, double lon, String query) {
+        String url = UriComponentsBuilder
+                .fromUriString("https://places-api.foursquare.com/places/search")
+                .queryParam("ll", lat + "," + lon)
+                .queryParam("query", query)
+                .queryParam("radius", 1500)
+                .queryParam("limit", 10)
+                .toUriString();
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", foursquareApiKey);
+        headers.set("Authorization", "Bearer " + foursquareApiKey.trim());
+        headers.set("X-Places-Api-Version", "2025-06-17");
+        headers.set("Accept", "application/json");
 
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         RestTemplate rest = new RestTemplate();
-        ResponseEntity<JsonNode> response = rest.exchange(url, HttpMethod.GET, entity, JsonNode.class);
+        ResponseEntity<Map> response = rest.exchange(url, HttpMethod.GET, entity, Map.class);
 
         return response.getBody();
     }
-    public JsonNode getSuggestionsForUsers(int userA, int userB) {
+
+    public Map<String, Object> getSuggestionsForUsers(int userA, int userB) {
         Map<String, Double> mid = getMidpoint(userA, userB);
         double lat = mid.get("lat");
         double lon = mid.get("lon");

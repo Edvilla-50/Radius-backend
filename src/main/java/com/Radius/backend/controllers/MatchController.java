@@ -6,7 +6,7 @@ import com.Radius.backend.Services.MatchService;
 import com.Radius.backend.Services.MeetService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.fasterxml.jackson.databind.JsonNode;
+
 
 
 import java.util.List;
@@ -52,7 +52,7 @@ public class MatchController {
         return meetService.getMidpoint(a, b);
     }
     @GetMapping("/meet/suggestions/{a}/{b}")
-    public JsonNode suggestions(@PathVariable int a, @PathVariable int b){
+    public Map<String, Object> suggestions(@PathVariable int a, @PathVariable int b){
         Map<String, Double> mid = meetService.getMidpoint(a, b);
         return meetService.getSuggestions(mid.get("lat"), mid.get("lon"));
     }
