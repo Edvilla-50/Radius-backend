@@ -12,7 +12,6 @@ import java.util.*;
 @Service
 public class FourSquareService {
 
-    // 🔐 This MUST be your SERVICE KEY (not fsq3...)
     @Value("${foursquare.apiKey}")
     private String apiKey;
 

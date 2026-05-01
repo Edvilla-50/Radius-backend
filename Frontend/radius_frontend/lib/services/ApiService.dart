@@ -163,7 +163,7 @@ class ApiService {
   static Future<int?> checkMutualForUser(int userId) async {
     final url = Uri.parse("$baseUrl/match/meet/mutual/find/$userId");
     final response = await http.get(url);
-    print("MUTUAL STATUS CODE: ${response.statusCode}"); // 👈
+    print("MUTUAL STATUS CODE: ${response.statusCode}"); 
     print("MUTUAL BODY: ${response.body}");    
 
     if (response.statusCode == 200) {
@@ -175,7 +175,7 @@ class ApiService {
     final url = "$baseUrl/messages/conversation/$a/$b";
     print("FETCHING CONVERSATION: $url"); // 👈
     final res = await http.get(Uri.parse(url));
-    print("CONVERSATION STATUS: ${res.statusCode}"); // 👈
+    print("CONVERSATION STATUS: ${res.statusCode}"); 
     print("CONVERSATION BODY: ${res.body}"); // 👈
     if (res.statusCode == 200) return jsonDecode(res.body);
     return [];

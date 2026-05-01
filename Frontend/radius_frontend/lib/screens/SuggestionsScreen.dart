@@ -36,7 +36,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _msgController.dispose(); // 👈 was _msgContoller (typo)
+    _msgController.dispose(); 
     _scrollController.dispose();
     super.dispose();
   }

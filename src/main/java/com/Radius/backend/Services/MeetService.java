@@ -147,12 +147,10 @@ public class MeetService {
 
         List<String> shared = getSharedCategories(userA, userB);
 
-        // If no shared interests → fallback to generic suggestions
         if (shared.isEmpty()) {
             return getSuggestions(lat, lon);
         }
         
-        // Use the first shared category for now
         String category = shared.get(0);
         String query = mapCategoryToQuery(category);
 
