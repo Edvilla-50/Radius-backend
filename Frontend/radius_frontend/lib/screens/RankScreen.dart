@@ -105,7 +105,7 @@ class _RankScreenState extends State<RankScreen> {
                 });
                 Navigator.pop(context);
               },
-              child: const Text('Add'), // ✅
+              child: const Text('Add'), 
             ),
           ],
         ),
@@ -172,7 +172,7 @@ class _RankScreenState extends State<RankScreen> {
               ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(  // ✅ add interest button
+      floatingActionButton: FloatingActionButton(  
         onPressed: _showAddInterestDialog,
         child: const Icon(Icons.add),
       ),

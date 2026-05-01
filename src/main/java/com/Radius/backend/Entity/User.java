@@ -31,7 +31,7 @@ public class User {
 
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(//silly ahh table that I made in data base, SQL am I right?
+    @JoinTable(
         name = "user_interests",
         joinColumns = @JoinColumn(name = "user_id"),
         inverseJoinColumns = @JoinColumn(name = "interest_id")

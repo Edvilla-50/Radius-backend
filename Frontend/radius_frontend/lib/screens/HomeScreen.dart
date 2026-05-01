@@ -43,9 +43,6 @@ Future<void> _startIncomingListener() async {
       return;
     }
     try {
-      // -------------------------------
-      // ⭐ 1. CHECK INCOMING REQUESTS (recipient flow FIRST)
-      // -------------------------------
       final incoming = await ApiService.getIncoming(userId!);
       if(_stopListener){
         return;
@@ -69,12 +66,9 @@ Future<void> _startIncomingListener() async {
       if(_stopListener){
         return;
       }
-      // -------------------------------
-      // ⭐ 2. CHECK MUTUAL ACCEPTANCE (sender flow SECOND)
-      // -------------------------------
       final mutualOtherUser = await ApiService.checkMutualForUser(userId!);
-      print("MUTUAL CHECK RESULT: $mutualOtherUser"); // 👈
-      print("_isDialogShowing: $_isDialogShowing");   // 👈
+      print("MUTUAL CHECK RESULT: $mutualOtherUser"); 
+      print("_isDialogShowing: $_isDialogShowing");   
       print("_stopListener: $_stopListener");  
       if(_stopListener){
         return;
