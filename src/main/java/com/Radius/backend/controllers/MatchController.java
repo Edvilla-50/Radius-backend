@@ -71,4 +71,13 @@ public class MatchController {
     public List<MeetRequest> getIncoming(@PathVariable int userId) { 
         return meetService.getIncoming(userId);
     }
+    @GetMapping("/meet/mutual/find/{userId}")
+    public ResponseEntity<Integer> getMutualForUser(@PathVariable int userId) {
+        Integer otherUserId = meetService.findMutualForUser(userId);
+            if (otherUserId == null) {
+        return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(otherUserId);
+    }
+
 }
