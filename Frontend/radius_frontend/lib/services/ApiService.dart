@@ -55,6 +55,7 @@ class ApiService {
 
 
   static Future<void> sendMeetRequest(int userId, int matchId) async {
+    print("SENDING MEET REQUEST: userId=$userId matchId=$matchId");
     final url = Uri.parse('$baseUrl/match/meet/request');
     final response = await http.post(
       url,
@@ -114,12 +115,12 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  Future<bool> checkMutual(int a, int b) async {
-  final res = await http.get(
-    Uri.parse("$baseUrl/match/meet/mutual/$a/$b"),
-  );
-  return jsonDecode(res.body);
-}
+  static Future<bool> checkMutual(int a, int b) async {
+    final res = await http.get(
+      Uri.parse("$baseUrl/match/meet/mutual/$a/$b"),
+    );
+    return jsonDecode(res.body);
+  }
 
 
   Future<Map<String, dynamic>> getMidpoint(int a, int b) async {
@@ -152,11 +153,39 @@ class ApiService {
       throw Exception("Backend error ${res.statusCode}: ${res.body}");
     }
   }
-  static Future<dynamic> getIncoming(int userId) async {
+  static Future<List<dynamic>> getIncoming(int userId) async {
     final res = await http.get(Uri.parse("$baseUrl/match/meet/incoming/$userId"));
     if (res.statusCode == 200 && res.body.isNotEmpty) {
       return jsonDecode(res.body);
     }
+    return [];
+  }
+  static Future<int?> checkMutualForUser(int userId) async {
+    final url = Uri.parse("$baseUrl/match/meet/mutual/find/$userId");
+    final response = await http.get(url);
+    print("MUTUAL STATUS CODE: ${response.statusCode}"); // 👈
+    print("MUTUAL BODY: ${response.body}");    
+
+    if (response.statusCode == 200) {
+      return int.parse(response.body);
+    }
     return null;
+  }
+  static Future<List<dynamic>> getConversation(int a, int b) async {
+    final url = "$baseUrl/messages/conversation/$a/$b";
+    print("FETCHING CONVERSATION: $url"); // 👈
+    final res = await http.get(Uri.parse(url));
+    print("CONVERSATION STATUS: ${res.statusCode}"); // 👈
+    print("CONVERSATION BODY: ${res.body}"); // 👈
+    if (res.statusCode == 200) return jsonDecode(res.body);
+    return [];
+}
+
+  static Future<void> sendMessage(int senderId, int receiverId, String content) async {
+    await http.post(
+      Uri.parse("$baseUrl/messages/send"),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'senderId': senderId, 'receiverId': receiverId, 'content': content}),
+    );
   }
 }

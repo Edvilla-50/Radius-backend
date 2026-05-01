@@ -53,44 +53,18 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
     }
   }
 
-  Future<void> _sendRequest(int matchId) async{
+  Future<void> _sendRequest(int otherUserId) async {
     try{
-      await ApiService.sendMeetRequest(widget.userId, matchId);
+      await ApiService.sendMeetRequest(widget.userId, otherUserId);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Request Sent')),
       );
-
-      _waitForMutual(matchId);
 
     }catch(e){
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error sending request'))
       );
     }
-  }
-  Future<void> _waitForMutual(int matchId) async{
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('waiting for mutual acceptance....')),
-    );
-    bool mutual = false;
-
-    while(!mutual){
-      await Future.delayed(const Duration(seconds: 3));
-
-      mutual = await ApiService().checkMutual(widget.userId, matchId);
-    }
-      if(!mounted){
-        return;
-      }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SuggestionsScreen(
-            userId: widget.userId,
-            matchId: matchId,
-          ),
-        ),
-      );
   }
    Future<void> _scan() async {
     setState(() => _scanning = true);

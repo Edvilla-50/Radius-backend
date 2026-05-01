@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.web.util.UriComponentsBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import java.util.Optional;
 @Service
 public class MeetService {
     @Autowired
@@ -29,10 +29,25 @@ public class MeetService {
     private String foursquareApiKey;
 
     //create a new meet request
-    public MeetRequest createRequest(int requesterId, int recieverId){
-        MeetRequest req = new MeetRequest(requesterId, recieverId, "PENDING");
+    public MeetRequest createRequest(int requesterId, int receiverId) {
+
+        // Check if a request already exists in either direction
+        Optional<MeetRequest> existingAB = repo.findByRequesterIdAndReceiverId(requesterId, receiverId);
+        Optional<MeetRequest> existingBA = repo.findByRequesterIdAndReceiverId(receiverId, requesterId);
+
+        if (existingAB.isPresent()) {
+            return existingAB.get(); // return existing request
+        }
+
+        if (existingBA.isPresent()) {
+            return existingBA.get(); // return existing request
+        }
+
+        // Otherwise create a new one
+        MeetRequest req = new MeetRequest(requesterId, receiverId, "PENDING");
         return repo.save(req);
     }
+
     //Get all incoming pending requests for a user
     public List<MeetRequest> getIncoming(int userId){
         return repo.findByReceiverIdAndStatus(userId, "PENDING");
@@ -44,12 +59,19 @@ public class MeetService {
         return repo.save(req);
     }
     //checks if both accept each other
-    public boolean isMutual(int requesterId, int receiverId){
-        List<MeetRequest> a = repo.findByRequesterIdAndStatus(requesterId, "ACCEPTED");
-        List<MeetRequest> b = repo.findByReceiverIdAndStatus(receiverId, "ACCEPTED");
+    public boolean isMutual(int a, int b) {
+    // Check request A → B
+        Optional<MeetRequest> reqAB = repo.findByRequesterIdAndReceiverId(a, b);
 
-        return !a.isEmpty() && !b.isEmpty();
+    // Check request B → A
+        Optional<MeetRequest> reqBA = repo.findByRequesterIdAndReceiverId(b, a);
+
+        boolean aAccepted = reqAB.isPresent() && "ACCEPTED".equals(reqAB.get().getStatus());
+        boolean bAccepted = reqBA.isPresent() && "ACCEPTED".equals(reqBA.get().getStatus());
+
+        return aAccepted && bAccepted;
     }
+
 
     @Autowired
     private UserRepository userRepo;
@@ -150,6 +172,18 @@ public class MeetService {
             default -> "popular";
         };
     }
+    public Integer findMutualForUser(int userId) {
+        List<MeetRequest> sent = repo.findByRequesterId(userId);
+
+        for (MeetRequest s : sent) {
+            if ("ACCEPTED".equals(s.getStatus())) {
+                return s.getReceiverId();
+            }
+        }
+
+        return null;
+    }
+
 
 }
 
