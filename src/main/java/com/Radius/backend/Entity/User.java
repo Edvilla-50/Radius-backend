@@ -28,6 +28,8 @@ public class User {
     private TraitStack stack = new TraitStack();
     @Transient
     private double score;
+    private String email;
+    private String password;
 
 
     @ManyToMany(fetch = FetchType.EAGER)
@@ -137,6 +139,21 @@ public class User {
     }
     public void setHtmlProfile(String htmlProfile){
         this.htmlProfile = htmlProfile;
+    }
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }
 
