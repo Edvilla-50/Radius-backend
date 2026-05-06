@@ -1,14 +1,17 @@
-# Use Java 17 (match your project version if different)
-FROM eclipse-temurin:17-jdk-alpine
-
-# Set working directory
+# Build stage
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Copy project files
-COPY . .
+# Run stage
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
 
-# Build the app using Maven wrapper
-RUN ./mvnw clean package -DskipTests
+# Render sets PORT automatically
+ENV PORT=8080
+EXPOSE 8080
 
-# Run the generated JAR yes
-CMD ["java", "-jar", "target/*.jar"]
+CMD ["java", "-jar", "app.jar"]
