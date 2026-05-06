@@ -8,6 +8,7 @@ import com.Radius.backend.Entity.User;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.Radius.backend.Entity.InterestEntity;
@@ -67,5 +68,11 @@ public class UserController {
             .orElseThrow(() -> new RuntimeException("User not found: " + id));
         user.setHtmlProfile(body.get("html"));
         return repo.save(user);
+    }
+    @GetMapping(value = "/{id}/profile-html", produces = "application/json")
+    public Map<String, String> getProfileHtml(@PathVariable long id) {
+        User user = repo.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found: " + id));
+        return Map.of("html", user.getHtmlProfile());
     }
 }
