@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:radius_frontend/screens/MessagesScreen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'MapScreen.dart';
 import 'package:radius_frontend/screens/EmergencyScreen.dart';
@@ -26,15 +27,23 @@ class _HomeScreenState extends State<HomeScreen>{
     _loadUser();
   }
 
-  Future<void> _loadUser() async {
+ Future<void> _loadUser() async {
   final prefs = await SharedPreferences.getInstance();
-  setState(() {
-    userId = prefs.getInt("userId") ?? 71; 
-  });
-  if (userId != null) {
-    _startIncomingListener();
+  final storedId = prefs.getInt("userId");
+
+  if (storedId == null) {
+    // No user stored → force login
+    Navigator.pushReplacementNamed(context, "/login");
+    return;
   }
+
+  setState(() {
+    userId = storedId;
+  });
+
+  _startIncomingListener();
 }
+
 bool _isDialogShowing = false;
 Future<void> _startIncomingListener() async {
   while (mounted && !_stopListener) {
@@ -192,7 +201,7 @@ Future<void> _showIncomingPopup(dynamic request) async {
 
     final pages = [   
       MapScreen(userId: userId!),
-      const Center(child: Text("Messages")),
+      MessagesScreen(userId: userId!),
       ProfileScreen(userId: userId!),
       RankScreen(userId: userId!),
       EmergencyScreen(userId: userId!),

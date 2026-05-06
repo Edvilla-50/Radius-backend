@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:radius_frontend/screens/registrationScreen.dart';
 import 'screens/HomeScreen.dart';
 import 'screens/LoginScreen.dart';
 void main() {
@@ -16,9 +17,10 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      initialRoute: '/',
+      initialRoute: '/login',
       routes:{
-        '/': (context) => LoginScreen(),
+        '/login': (context) => LoginScreen(),
+        '/register': (_) => const RegistrationScreen(),
         '/home': (context) => const HomeScreen(),
       } 
     );

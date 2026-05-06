@@ -3,7 +3,8 @@
   import 'package:radius_frontend/enums/EmergencyType.dart';
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8080";
+  static const String baseUrl = "https://radius-backend-0qv8.onrender.com";
+
 
   static Future<void> sendEmergency({
     required int userId,

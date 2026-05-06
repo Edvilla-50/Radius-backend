@@ -24,7 +24,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   Future<void> fetchMutualMatches() async {
     final response = await http.get(
-      Uri.parse("https://api.radius-create.com/meet/mutual/${widget.userId}")
+      Uri.parse("https://radius-backend-0qv8.onrender.com/meet/mutual/${widget.userId}")
     );
 
     if (response.statusCode == 200) {
