@@ -10,5 +10,5 @@ COPY . .
 # Build the app using Maven wrapper
 RUN ./mvnw clean package -DskipTests
 
-# Run the generated JAR
+# Run the generated JAR yes
 CMD ["java", "-jar", "target/*.jar"]
