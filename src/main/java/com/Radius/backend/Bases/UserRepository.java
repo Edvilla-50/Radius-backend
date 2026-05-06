@@ -3,7 +3,7 @@ import com.Radius.backend.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
-
+import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByLatBetweenAndLonBetween(//JPA convention for custom SQL call
@@ -12,4 +12,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
         double minLon,
         double maxLon
     );
+    Optional<User> findByEmail(String email);
 }

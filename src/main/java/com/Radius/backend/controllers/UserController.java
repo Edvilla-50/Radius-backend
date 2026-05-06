@@ -9,8 +9,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import com.Radius.backend.requests.LoginRequest;
+import com.Radius.backend.requests.RegisterRequest;
 import com.Radius.backend.Entity.InterestEntity;
 import java.util.Map;
 
@@ -20,10 +23,11 @@ public class UserController {
 
     private final InterestRepository interestRepository;
     private final UserRepository repo;
-
-    public UserController(UserRepository repo, InterestRepository interestRepository){
+    private final BCryptPasswordEncoder encoder;
+    public UserController(UserRepository repo,InterestRepository interestRepository,BCryptPasswordEncoder encoder) {
         this.repo = repo;
         this.interestRepository = interestRepository;
+        this.encoder = encoder;
     }
 
     @PostMapping("/{id}/location")
@@ -75,4 +79,35 @@ public class UserController {
             .orElseThrow(() -> new RuntimeException("User not found: " + id));
         return Map.of("html", user.getHtmlProfile());
     }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
+
+        if (repo.findByEmail(req.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body("Email already exists");
+        }
+
+        User user = new User();
+        user.setEmail(req.getEmail());
+        user.setPassword(encoder.encode(req.getPassword()));
+        user.setName(req.getName());
+
+        repo.save(user);
+
+        return ResponseEntity.ok(Map.of("userId", user.getId()));
+    }
+    @PostMapping("/login")
+    public ResponseEntity<?> login (@RequestBody LoginRequest req){
+        User user = repo.findByEmail(req.getEmail())
+            .orElseThrow(() -> new RuntimeException("Invalid email"));
+        if(!encoder.matches(req.getPassword(), user.getPassword())){
+            return ResponseEntity.badRequest().body("Invalid credentials");
+        }   
+
+        return ResponseEntity.ok(Map.of(
+            "userId", user.getId(),
+            "name", user.getName()
+        ));
+    }
+
 }
