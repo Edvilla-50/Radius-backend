@@ -188,4 +188,9 @@ class ApiService {
       body: jsonEncode({'senderId': senderId, 'receiverId': receiverId, 'content': content}),
     );
   }
+  static Future<String> getProfileHtml(int userId) async {
+    final res = await http.get(Uri.parse("$baseUrl/user/$userId/profile-html"));
+    final data = jsonDecode(res.body);
+    return data["html"] ?? "";
+  }
 }

@@ -71,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     setState(() => _saving = false); 
   }
-
+  
   Widget _templateCard(String id, String label, Color color) {
     final isSelected = _selectedTemplate == id;
     return GestureDetector(
@@ -108,11 +108,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.preview),
-            onPressed: (){
+            onPressed: () async{
+              final html = await ApiService.getProfileHtml(widget.userId);
               Navigator.push(
                 context,
                 MaterialPageRoute( 
-                builder: (context)=>ProfilePreviewScreen(html:_generateHtml())
+               builder: (context)=>ProfilePreviewScreen(html: html)
                 ),
               );
             },
