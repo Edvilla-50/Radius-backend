@@ -14,15 +14,23 @@ public class SMSService {
     private static final String MESSAGING_SERVICE_SID = "MG1d7566df91520a0533beda03c34d57ef";
 
     public SMSService() {
-        Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
+        // Disable Twilio unless credentials exist
+        if (ACCOUNT_SID != null && AUTH_TOKEN != null) {
+            Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
+        }
     }
 
     public String sendSms(String to, String body) {
+        if (ACCOUNT_SID == null || AUTH_TOKEN == null) {
+            return "SMS disabled (missing Twilio credentials)";
+        }
+
         Message.creator(
                 new PhoneNumber(to),
-                MESSAGING_SERVICE_SID,   // <-- correct usage
+                MESSAGING_SERVICE_SID,
                 body
         ).create();
+
         return "Msg sent";
     }
 }
