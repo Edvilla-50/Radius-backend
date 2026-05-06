@@ -15,8 +15,22 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Prevent WebView crash by ensuring HTML is never empty
+    final safeHtml = widget.html.isNotEmpty
+        ? widget.html
+        : """
+          <html>
+            <body style="font-family: Arial; padding: 20px;">
+              <h2>No Profile Found</h2>
+              <p>You haven't created a profile yet.</p>
+              <p>Please customize your profile in the Profile Editor.</p>
+            </body>
+          </html>
+        """;
+
     controller = WebViewController()
-      ..loadHtmlString(widget.html);
+      ..loadHtmlString(safeHtml);
   }
 
   @override

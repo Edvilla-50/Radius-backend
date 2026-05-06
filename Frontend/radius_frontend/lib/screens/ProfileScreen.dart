@@ -69,9 +69,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(content: Text('Failed to save profile!')),
       );
     }
-    setState(() => _saving = false); 
+    setState(() => _saving = false);
   }
-  
+
   Widget _templateCard(String id, String label, Color color) {
     final isSelected = _selectedTemplate == id;
     return GestureDetector(
@@ -89,12 +89,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         child: Center(
-          child: Text(label,
+          child: Text(
+            label,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
               color: color == Colors.white ? Colors.black : Colors.white,
-            )),
+            ),
+          ),
         ),
       ),
     );
@@ -108,25 +110,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.preview),
-            onPressed: () async{
+            onPressed: () async {
               final html = await ApiService.getProfileHtml(widget.userId);
               Navigator.push(
                 context,
-                MaterialPageRoute( 
-               builder: (context)=>ProfilePreviewScreen(html: html)
+                MaterialPageRoute(
+                  builder: (context) => ProfilePreviewScreen(html: html),
                 ),
               );
             },
           ),
           _saving
-            ? const Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(color: Colors.white),
-              )
-            : IconButton(
-                icon: const Icon(Icons.save),
-                onPressed: _saveProfile,
-              ),
+              ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(color: Colors.white),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.save),
+                  onPressed: _saveProfile,
+                ),
         ],
       ),
       body: SingleChildScrollView(
@@ -134,9 +136,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Choose a Template',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            // ⭐ NEW BANNER ADDED HERE
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                "This is a simple in‑app editor.\nFor full customization, visit www.radius-create.com",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+
+            const Text(
+              'Choose a Template',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 10),
+
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -149,10 +174,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+
             const SizedBox(height: 20),
             const Text('Bio',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
+
             TextField(
               maxLines: 3,
               decoration: const InputDecoration(
@@ -161,10 +188,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               onChanged: (val) => setState(() => _bio = val),
             ),
+
             const SizedBox(height: 20),
             const Text('Favorite Quote',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
+
             TextField(
               decoration: const InputDecoration(
                 hintText: 'What\'s your favorite quote?',

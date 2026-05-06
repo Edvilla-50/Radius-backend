@@ -40,7 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> fetchMessages() async {
-    final url = "https://api.radius-create.com/messages/${widget.userId}/${widget.otherUserId}";
+    final url = "https://radius-backend-0qv8.onrender.com/messages/${widget.userId}/${widget.otherUserId}";
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -61,7 +61,7 @@ class _ChatScreenState extends State<ChatScreen> {
     };
 
     await http.post(
-      Uri.parse("https://api.radius-create.com/messages/send"),
+      Uri.parse("https://radius-backend-0qv8.onrender.com/messages/send"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode(body),
     );
