@@ -7,46 +7,57 @@ import jakarta.persistence.Id;
 
 @Entity
 public class Message {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private int senderId;
-    private int receiverId;
-    private String content;
-    private Long timeStamp;
 
-    public Message(){}
+    private int matchId;     // NEW — identifies the conversation
+    private int senderId;    // who sent the message
+    private String content;  // message text
+    private Long timeStamp;  // unix ms
 
-    public Message(int senderId, int receiverId, String content){
+    public Message() {}
+
+    public Message(int matchId, int senderId, String content) {
+        this.matchId = matchId;
         this.senderId = senderId;
-        this.receiverId = receiverId;
         this.content = content;
         this.timeStamp = System.currentTimeMillis();
     }
-    public void setSenderId(int senderId){
-        this.senderId = senderId;
-    }
-    public int getSenderId(){
-        return this.senderId;
-    }
-    public void setReceiverId(int receiverId){
-        this.receiverId = receiverId;
-    }
-    public int getReceiverId(){
-        return this.receiverId;
-    }
-    public void setContent(String content){
-        this.content = content;
-    }
-    public String getContent(){
-        return this.content;
-    }
+
     public Long getId() {
         return id;
     }
+
+    public int getMatchId() {
+        return matchId;
+    }
+
+    public void setMatchId(int matchId) {
+        this.matchId = matchId;
+    }
+
+    public int getSenderId() {
+        return senderId;
+    }
+
+    public void setSenderId(int senderId) {
+        this.senderId = senderId;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
     public Long getTimeStamp() {
         return timeStamp;
     }
+
     public void setTimeStamp(Long timeStamp) {
         this.timeStamp = timeStamp;
     }
