@@ -6,16 +6,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+
 @Service
 public class MessageService {
+
     @Autowired
     private MessageRepository repo;
 
-    public Message sendMessage(int senderId, int receiverId, String content){
-        Message msg = new Message(senderId, receiverId, content);
+    // Save a message for a matchId conversation
+    public Message sendMessage(int matchId, int senderId, String content) {
+        Message msg = new Message(matchId, senderId, content);
         return repo.save(msg);
     }
-    public List<Message> getConversation(int a, int b) {
-        return repo.findConversation(a, b);
+
+    // Load all messages for a matchId
+    public List<Message> getConversation(int matchId) {
+        return repo.findByMatchIdOrderByTimeStampAsc(matchId);
     }
 }

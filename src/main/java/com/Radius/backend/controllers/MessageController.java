@@ -8,24 +8,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-
 @RestController
 @RequestMapping("/messages")
-@CrossOrigin(origins =  "*")
+@CrossOrigin(origins = "*")
 public class MessageController {
+
     @Autowired
     private MessageService service;
 
     @PostMapping("/send")
-    public Message sendMessage(@RequestBody Map<String, Object> body){
+    public Message sendMessage(@RequestBody Map<String, Object> body) {
+        int matchId = (int) body.get("matchId");
         int senderId = (int) body.get("senderId");
-        int receiverId = (int) body.get("receiverId");
         String content = (String) body.get("content");
 
-        return service.sendMessage(senderId, receiverId, content);
+        return service.sendMessage(matchId, senderId, content);
     }
-    @GetMapping("/conversation/{a}/{b}")
-    public List<Message> getConversation(@PathVariable int a, @PathVariable int b){
-        return service.getConversation(a, b);
+
+    @GetMapping("/conversation/{matchId}")
+    public List<Message> getConversation(@PathVariable int matchId) {
+        return service.getConversation(matchId);
     }
 }

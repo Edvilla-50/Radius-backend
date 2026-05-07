@@ -5,11 +5,13 @@ import 'dart:async';
 class SuggestionsScreen extends StatefulWidget {
   final int userId;
   final int otherUserId;
+  final int matchId;
 
   const SuggestionsScreen({
     super.key,
     required this.userId,
     required this.otherUserId,
+    required this.matchId,
   });
 
   @override
@@ -43,7 +45,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   Future<void> _loadSuggestions() async {
     try {
-      final res = await ApiService().getInterestSuggestions(
+      final res = await ApiService.getInterestSuggestions(
         widget.userId,
         widget.otherUserId,
       );
@@ -61,7 +63,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   Future<void> _loadMessages() async {
     try {
-      final msgs = await ApiService.getConversation(widget.userId, widget.otherUserId); 
+      final msgs = await ApiService.getConversation(widget.matchId); 
       setState(() => _messages = msgs);
       WidgetsBinding.instance.addPostFrameCallback((_) { 
         if (_scrollController.hasClients) {
@@ -92,7 +94,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         });
     });
     try{
-      await ApiService.sendMessage(widget.userId, widget.otherUserId, text);
+      await ApiService.sendMessage(widget.matchId, widget.userId, text);
       await _loadMessages();
     }catch(e){
       print('error sending messages');
