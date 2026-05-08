@@ -53,7 +53,22 @@ public class MeetService {
     public MeetRequest respond(int requestId, boolean accepted) {
         MeetRequest req = repo.findById(requestId).orElseThrow();
         req.setStatus(accepted ? "ACCEPTED" : "DECLINED");
-        return repo.save(req);
+        repo.save(req);
+
+        if (accepted) {
+            Optional<MeetRequest> reverse = repo.findByRequesterIdAndReceiverId(req.getReceiverId(), req.getRequesterId());
+            if (reverse.isEmpty()) {
+                MeetRequest rev = new MeetRequest(req.getReceiverId(), req.getRequesterId(), "ACCEPTED");
+                MeetRequest saved = repo.save(rev);
+                saved.setMatchId(req.getMatchId()); // same matchId
+                repo.save(saved);
+            } else {
+                reverse.get().setStatus("ACCEPTED");
+                repo.save(reverse.get());
+            }
+        }
+
+        return req;
     }
 
     public boolean isMutual(int a, int b) {
