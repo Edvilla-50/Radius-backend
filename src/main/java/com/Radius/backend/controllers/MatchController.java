@@ -7,11 +7,8 @@ import com.Radius.backend.Services.MeetService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-
-
 import java.util.List;
 import java.util.Map;
-
 
 @RestController
 @RequestMapping("/match")
@@ -26,16 +23,17 @@ public class MatchController {
     }
 
     @GetMapping("/{id}")
-    public List<User> getMatches(@PathVariable long id){
+    public List<User> getMatches(@PathVariable long id) {
         return service.findMyBestMatch(id);
     }
 
     @PostMapping("/meet/request")
-    public ResponseEntity<?> sendMeetRequest(@RequestBody Map<String, Object>body){
-        int userId = (int) body.get("userId");
-        int matchId = (int) body.get ("matchId");
+    public ResponseEntity<?> sendMeetRequest(@RequestBody Map<String, Object> body) {
+        // Flutter sends: { "userId": requesterId, "matchId": otherUserId }
+        int userId = ((Number) body.get("userId")).intValue();
+        int otherUserId = ((Number) body.get("matchId")).intValue();
 
-        meetService.createRequest(userId,matchId);
+        meetService.createRequest(userId, otherUserId);
         return ResponseEntity.ok("Request sent");
     }
 
@@ -43,41 +41,44 @@ public class MatchController {
     public MeetRequest respond(@RequestParam int requestId, @RequestParam boolean accepted) {
         return meetService.respond(requestId, accepted);
     }
+
     @GetMapping("/meet/mutual/{a}/{b}")
-    public boolean checkMutual(@PathVariable int a, @PathVariable int b){
+    public boolean checkMutual(@PathVariable int a, @PathVariable int b) {
         return meetService.isMutual(a, b);
     }
+
     @GetMapping("/meet/midpoint/{a}/{b}")
-    public Map<String, Double> midpoint(@PathVariable int a, @PathVariable int b){
+    public Map<String, Double> midpoint(@PathVariable int a, @PathVariable int b) {
         return meetService.getMidpoint(a, b);
     }
+
     @GetMapping("/meet/suggestions/{a}/{b}")
-    public Map<String, Object> suggestions(@PathVariable int a, @PathVariable int b){
+    public Map<String, Object> suggestions(@PathVariable int a, @PathVariable int b) {
         Map<String, Double> mid = meetService.getMidpoint(a, b);
         return meetService.getSuggestions(mid.get("lat"), mid.get("lon"));
     }
+
     @GetMapping("/meet/suggestions/interests/{a}/{b}")
     public ResponseEntity<?> suggestionsByInterest(@PathVariable int a, @PathVariable int b) {
         try {
             return ResponseEntity.ok(meetService.getSuggestionsForUsers(a, b));
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body(
-                Map.of("error", e.getMessage())
-            );
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
-    }
-    @GetMapping("/meet/incoming/{userId}")
-    public List<MeetRequest> getIncoming(@PathVariable int userId) { 
-        return meetService.getIncoming(userId);
-    }
-    @GetMapping("/meet/mutual/find/{userId}")
-    public ResponseEntity<Integer> getMutualForUser(@PathVariable int userId) {
-        Integer otherUserId = meetService.findMutualForUser(userId);
-            if (otherUserId == null) {
-        return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.ok(otherUserId);
     }
 
+    @GetMapping("/meet/incoming/{userId}")
+    public List<MeetRequest> getIncoming(@PathVariable int userId) {
+        return meetService.getIncoming(userId);
+    }
+
+    @GetMapping("/meet/mutual/find/{userId}")
+    public ResponseEntity<Integer> getMutualForUser(@PathVariable int userId) {
+        Integer matchId = meetService.findMutualForUser(userId);
+        if (matchId == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(matchId);
+    }
 }
