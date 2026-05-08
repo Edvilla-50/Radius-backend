@@ -90,11 +90,12 @@ class ApiService {
     return [];
   }
 
-  static Future<int?> checkMutualForUser(int userId) async {
+  // Returns { "matchId": int, "otherUserId": int } or null
+  static Future<Map<String, dynamic>?> checkMutualForUser(int userId) async {
     final res = await http.get(Uri.parse("$baseUrl/match/meet/mutual/find/$userId"));
 
-    if (res.statusCode == 200) {
-      return int.tryParse(res.body);
+    if (res.statusCode == 200 && res.body.isNotEmpty) {
+      return jsonDecode(res.body);
     }
 
     return null;
@@ -224,9 +225,10 @@ class ApiService {
       throw Exception("Failed to send message");
     }
   }
+
   static Future<Map<String, dynamic>> respond(int requestId, bool accepted) async {
     final res = await http.get(
-      Uri.parse("$baseUrl/match/meet/respond?requestId=$requestId&accepted=$accepted")
+      Uri.parse("$baseUrl/match/meet/respond?requestId=$requestId&accepted=$accepted"),
     );
     return jsonDecode(res.body);
   }
