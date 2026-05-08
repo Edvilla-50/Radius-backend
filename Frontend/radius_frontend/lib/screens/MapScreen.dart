@@ -7,24 +7,32 @@ import '../services/LocationService.dart';
 import 'ProfilePreviewScreen.dart';
 import 'dart:async';
 import 'SuggestionsScreen.dart';
-//inherit StatefulWidget class
-class MapScreen extends StatefulWidget{
-  final int userId;//atrributes to make it unique
-  const MapScreen ({super.key, required this.userId});//constuctir
-  @override//first method to impliment
-  State<MapScreen> createState()  => _MapScreenState();
+
+class MapScreen extends StatefulWidget {
+  final int userId;
+  const MapScreen({super.key, required this.userId});
+
+  @override
+  State<MapScreen> createState() => _MapScreenState();
 }
-//Map screen
-class _MapScreenState extends State<MapScreen>{//impliment state class functions
-  LatLng? _myLocation;//atrributes
+
+class _MapScreenState extends State<MapScreen> {
+  LatLng? _myLocation;
   List<dynamic> _matches = [];
   bool _scanning = false;
   final MapController _mapController = MapController();
   StreamSubscription<Position>? _locationStream;
-  @override//declare state
-  void initState(){
+
+  @override
+  void initState() {
     super.initState();
     _getLocation();
+  }
+
+  @override
+  void dispose() {
+    _locationStream?.cancel();
+    super.dispose();
   }
 
   Future<void> _getLocation() async {
@@ -35,42 +43,48 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
       setState(() {
         _myLocation = LatLng(position.latitude, position.longitude);
       });
-      _mapController.move(_myLocation!, 15.0);
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapController.move(_myLocation!, 15.0);
+      });
+
       await ApiService.updateLocation(widget.userId, position.latitude, position.longitude);
+
       _locationStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,
         ),
-      ).listen((Position position) async{
+      ).listen((Position position) async {
         setState(() {
           _myLocation = LatLng(position.latitude, position.longitude);
         });
         await ApiService.updateLocation(widget.userId, position.latitude, position.longitude);
       });
-    } catch(e){
+    } catch (e) {
       print('error: $e');
     }
   }
 
   Future<void> _sendRequest(int otherUserId) async {
-    try{
+    try {
       await ApiService.sendMeetRequest(widget.userId, otherUserId);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Request Sent')),
       );
-
-    }catch(e){
+    } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error sending request'))
+        const SnackBar(content: Text('Error sending request')),
       );
     }
   }
-   Future<void> _scan() async {
+
+  Future<void> _scan() async {
     setState(() => _scanning = true);
     try {
       final matches = await ApiService.getMatches(widget.userId);
-      print('Matches recieved: $matches');
       setState(() {
         _matches = matches;
         _scanning = false;
@@ -79,6 +93,7 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
       setState(() => _scanning = false);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,8 +117,7 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
                       point: _myLocation!,
                       width: 40,
                       height: 40,
-                      child: const Icon(Icons.person_pin_circle,
-                        color: Colors.blue, size: 40),
+                      child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
                     ),
                 ],
               ),
@@ -124,12 +138,12 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
                   ),
                 ),
                 child: _scanning
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('SCAN', style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    )),
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('SCAN', style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      )),
               ),
             ),
           ),
@@ -158,28 +172,28 @@ class _MapScreenState extends State<MapScreen>{//impliment state class functions
                           color: Colors.blue,
                         ),
                       ),
-                      onTap: (){
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ProfilePreviewScreen(
-                              html: match['htmlProfile'] ??'<h1>${match['name']}</h1><p>No profile yet</p>',
+                              html: match['htmlProfile'] ?? '<h1>${match['name']}</h1><p>No profile yet</p>',
                             ),
                           ),
                         );
                       },
                       trailing: ElevatedButton(
-                        onPressed: () => _sendRequest(match['id'] as int),
+                        onPressed: () => _sendRequest((match['id'] as num).toInt()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.lightGreenAccent,
-                          padding: const EdgeInsets.symmetric(horizontal:12,vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8),)
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         child: const Text(
                           "Request",
                           style: TextStyle(color: Colors.white),
-                        )
-                      )
+                        ),
+                      ),
                     );
                   },
                 ),

@@ -29,7 +29,6 @@ public class MatchController {
 
     @PostMapping("/meet/request")
     public ResponseEntity<?> sendMeetRequest(@RequestBody Map<String, Object> body) {
-        // Flutter sends: { "userId": requesterId, "matchId": otherUserId }
         int userId = ((Number) body.get("userId")).intValue();
         int otherUserId = ((Number) body.get("matchId")).intValue();
 
@@ -74,11 +73,11 @@ public class MatchController {
     }
 
     @GetMapping("/meet/mutual/find/{userId}")
-    public ResponseEntity<Integer> getMutualForUser(@PathVariable int userId) {
-        Integer matchId = meetService.findMutualForUser(userId);
-        if (matchId == null) {
+    public ResponseEntity<Map<String, Integer>> getMutualForUser(@PathVariable int userId) {
+        Map<String, Integer> result = meetService.findMutualForUser(userId);
+        if (result == null) {
             return ResponseEntity.noContent().build();
         }
-        return ResponseEntity.ok(matchId);
+        return ResponseEntity.ok(result);
     }
 }

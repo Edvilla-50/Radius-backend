@@ -19,7 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _stopListener = false;
   bool _isDialogShowing = false;
 
-  // Generation counter to invalidate stale listener loops
   int _listenerGeneration = 0;
 
   int index = 0;
@@ -78,28 +77,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
-        // checkMutualForUser returns int? (the matchId), not a Map
-        final matchId = await ApiService.checkMutualForUser(userId!);
+        // Returns { "matchId": int, "otherUserId": int } or null
+        final mutual = await ApiService.checkMutualForUser(userId!);
 
         if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
-        if (matchId != null && !_isDialogShowing) {
+        if (mutual != null && !_isDialogShowing) {
           _stopListener = true;
 
-          // Look up the other user from the matches list using the matchId
-          final matches = await ApiService.getMatches(userId!);
-          if (!mounted) break;
-
-          final match = matches.firstWhere(
-            (m) => (m["id"] as num).toInt() == matchId,
-            orElse: () => null,
-          );
-
-          if (match == null) break;
-
-          final otherUserId = (match["user1Id"] as num).toInt() == userId
-              ? (match["user2Id"] as num).toInt()
-              : (match["user1Id"] as num).toInt();
+          final matchId = (mutual["matchId"] as num).toInt();
+          final otherUserId = (mutual["otherUserId"] as num).toInt();
 
           Navigator.push(
             context,
@@ -123,9 +110,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showIncomingPopup(dynamic req) async {
-    final requesterId = (req["requester_id"] as num).toInt();
-    final receiverId = (req["receiver_id"] as num).toInt();
-    final matchId = (req["match_id"] as num).toInt();
+    final requesterId = (req["requesterId"] as num).toInt();
+    final receiverId = (req["receiverId"] as num).toInt();
+    final matchId = (req["matchId"] as num).toInt();
     final reqId = (req["id"] as num).toInt();
 
     final requester = await ApiService.getUser(requesterId);

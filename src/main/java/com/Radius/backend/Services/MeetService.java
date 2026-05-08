@@ -33,35 +33,29 @@ public class MeetService {
     @Value("${foursquare.apiKey}")
     private String foursquareApiKey;
 
-    // Create a new meet request
     public MeetRequest createRequest(int requesterId, int receiverId) {
-        // Check if a request already exists in either direction
         Optional<MeetRequest> existingAB = repo.findByRequesterIdAndReceiverId(requesterId, receiverId);
         Optional<MeetRequest> existingBA = repo.findByRequesterIdAndReceiverId(receiverId, requesterId);
 
         if (existingAB.isPresent()) return existingAB.get();
         if (existingBA.isPresent()) return existingBA.get();
 
-        // Save first to get the generated id, then use it as matchId
         MeetRequest req = new MeetRequest(requesterId, receiverId, "PENDING");
         MeetRequest saved = repo.save(req);
-        saved.setMatchId(saved.getId()); // use the request's own id as the matchId
+        saved.setMatchId(saved.getId());
         return repo.save(saved);
     }
 
-    // Get all incoming pending requests for a user
     public List<MeetRequest> getIncoming(int userId) {
         return repo.findByReceiverIdAndStatus(userId, "PENDING");
     }
 
-    // Accept or decline a request
     public MeetRequest respond(int requestId, boolean accepted) {
         MeetRequest req = repo.findById(requestId).orElseThrow();
         req.setStatus(accepted ? "ACCEPTED" : "DECLINED");
         return repo.save(req);
     }
 
-    // Check if both users have accepted each other
     public boolean isMutual(int a, int b) {
         Optional<MeetRequest> reqAB = repo.findByRequesterIdAndReceiverId(a, b);
         Optional<MeetRequest> reqBA = repo.findByRequesterIdAndReceiverId(b, a);
@@ -72,25 +66,21 @@ public class MeetService {
         return aAccepted && bAccepted;
     }
 
-    // Find a mutual match for a user and return the matchId
-    public Integer findMutualForUser(int userId) {
-        // Check requests this user sent that were accepted
+    // Returns both matchId and otherUserId so Flutter doesn't have to look them up separately
+    public Map<String, Integer> findMutualForUser(int userId) {
         List<MeetRequest> sent = repo.findByRequesterIdAndStatus(userId, "ACCEPTED");
         for (MeetRequest s : sent) {
-            // Verify the other side also sent an accepted request
             Optional<MeetRequest> other = repo.findByRequesterIdAndReceiverId(s.getReceiverId(), userId);
             if (other.isPresent() && "ACCEPTED".equals(other.get().getStatus())) {
-                return s.getMatchId();
+                return Map.of("matchId", s.getMatchId(), "otherUserId", s.getReceiverId());
             }
         }
 
-        // Check requests this user received that they accepted
         List<MeetRequest> received = repo.findByReceiverIdAndStatus(userId, "ACCEPTED");
         for (MeetRequest r : received) {
-            // Verify the other side also sent an accepted request
             Optional<MeetRequest> other = repo.findByRequesterIdAndReceiverId(r.getRequesterId(), userId);
             if (other.isPresent() && "ACCEPTED".equals(other.get().getStatus())) {
-                return r.getMatchId();
+                return Map.of("matchId", r.getMatchId(), "otherUserId", r.getRequesterId());
             }
         }
 
@@ -196,5 +186,4 @@ public class MeetService {
         };
     }
 }
-
 
