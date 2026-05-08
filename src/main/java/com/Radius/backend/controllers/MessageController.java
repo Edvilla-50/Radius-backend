@@ -10,7 +10,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/messages")
-@CrossOrigin(origins = "*")
 public class MessageController {
 
     @Autowired
@@ -18,8 +17,8 @@ public class MessageController {
 
     @PostMapping("/send")
     public Message sendMessage(@RequestBody Map<String, Object> body) {
-        int matchId = (int) body.get("matchId");
-        int senderId = (int) body.get("senderId");
+        int matchId = ((Number) body.get("matchId")).intValue();
+        int senderId = ((Number) body.get("senderId")).intValue();
         String content = (String) body.get("content");
 
         return service.sendMessage(matchId, senderId, content);
