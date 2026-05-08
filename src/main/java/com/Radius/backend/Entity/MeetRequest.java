@@ -54,7 +54,6 @@ public class MeetRequest {
     public int getMatchId() {
         return matchId;
     }
-
     public void setMatchId(int matchId) {
         this.matchId = matchId;
     }
