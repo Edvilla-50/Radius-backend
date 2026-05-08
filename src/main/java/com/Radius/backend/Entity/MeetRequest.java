@@ -13,33 +13,49 @@ public class MeetRequest {
     private int requesterId;
     private int receiverId;
     private String status;
-    public MeetRequest() {}//in case hibernate throws no default
+    private int matchId; // links to message table's match_id
 
-    public MeetRequest(int requesterId, int receiverId, String status){
+    public MeetRequest() {}
+
+    public MeetRequest(int requesterId, int receiverId, String status) {
         this.requesterId = requesterId;
         this.receiverId = receiverId;
         this.status = status;
     }
 
-    public int getId(){
+    public int getId() {
         return id;
     }
-    public int getRequesterId(){
+
+    public int getRequesterId() {
         return requesterId;
     }
-    public void setRequesterId(int Rid){
-        this.requesterId = Rid;
+
+    public void setRequesterId(int requesterId) {
+        this.requesterId = requesterId;
     }
-    public void setReceiverId(int Sid){
-        this.receiverId = Sid;
-    }
-    public int getReceiverId(){
+
+    public int getReceiverId() {
         return receiverId;
     }
-    public String getStatus(){
+
+    public void setReceiverId(int receiverId) {
+        this.receiverId = receiverId;
+    }
+
+    public String getStatus() {
         return status;
     }
-    public void setStatus(String Status){
-        this.status = Status;
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public int getMatchId() {
+        return matchId;
+    }
+
+    public void setMatchId(int matchId) {
+        this.matchId = matchId;
     }
 }

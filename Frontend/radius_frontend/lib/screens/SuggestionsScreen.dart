@@ -31,14 +31,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     super.initState();
     _loadSuggestions();
     _loadMessages();
-    _pollTimer = Timer.periodic(const Duration(seconds: 1), (_) => _loadMessages());
-    print("POLLING MESSAGES...");
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => _loadMessages());
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _msgController.dispose(); 
+    _msgController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -49,11 +48,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         widget.userId,
         widget.otherUserId,
       );
+      if (!mounted) return;
       setState(() {
         _suggestions = res;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading suggestions: $e')),
@@ -63,13 +64,14 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   Future<void> _loadMessages() async {
     try {
-      final msgs = await ApiService.getConversation(widget.matchId); 
+      final msgs = await ApiService.getConversation(widget.matchId);
+      if (!mounted) return;
       setState(() => _messages = msgs);
-      WidgetsBinding.instance.addPostFrameCallback((_) { 
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300), 
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
         }
@@ -81,26 +83,15 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   Future<void> _sendMessage() async {
     final text = _msgController.text.trim();
-    if(text.isEmpty){
-      return;
-    }
+    if (text.isEmpty) return;
     _msgController.clear();
-    setState(() {
-      _messages.add({
-        'senderId': widget.userId,
-        'receiverId': widget.otherUserId,
-        'content': text,
-        'timeStamp': DateTime.now().millisecondsSinceEpoch,
-        });
-    });
-    try{
+    try {
       await ApiService.sendMessage(widget.matchId, widget.userId, text);
       await _loadMessages();
-    }catch(e){
-      print('error sending messages');
+    } catch (e) {
+      print('error sending message: $e');
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -167,8 +158,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
-                      print("MSG: ${msg['content']}, senderId: ${msg['senderId']} (${msg['senderId'].runtimeType}), myId: ${widget.userId} (${widget.userId.runtimeType}), isMe: ${msg['senderId'] == widget.userId}"); // 
-                      final isMe = msg['senderId'] == widget.userId;
+                      // Fix: normalize senderId to int before comparing to avoid type mismatch
+                      final isMe = (msg['senderId'] as num).toInt() == widget.userId;
                       return Align(
                         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(

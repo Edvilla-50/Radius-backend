@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../services/ApiService.dart';
 import 'MapScreen.dart';
 import 'MessagesScreen.dart';
@@ -20,6 +19,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _stopListener = false;
   bool _isDialogShowing = false;
 
+  // Generation counter to invalidate stale listener loops
+  int _listenerGeneration = 0;
+
   int index = 0;
   int? userId;
 
@@ -31,89 +33,105 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUser();
   }
 
-  // ---------------------------------------------------------
-  // LOAD USER
-  // ---------------------------------------------------------
   Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();
     final storedId = prefs.getInt("userId");
 
     if (storedId == null) {
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, "/login");
       return;
     }
 
     setState(() => userId = storedId);
 
+    _shownRequestIds.clear();
     _startIncomingListener();
   }
 
-  // ---------------------------------------------------------
-  // INCOMING REQUEST LISTENER
-  // ---------------------------------------------------------
   Future<void> _startIncomingListener() async {
-    while (mounted && !_stopListener) {
+    _stopListener = false;
+
+    final myGeneration = ++_listenerGeneration;
+
+    while (mounted && !_stopListener && _listenerGeneration == myGeneration) {
       await Future.delayed(const Duration(seconds: 3));
-      if (_stopListener) return;
+
+      if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
       try {
-        // 1. Check incoming meet requests
         final incoming = await ApiService.getIncoming(userId!);
-        if (_stopListener) return;
+
+        if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
         if (incoming.isNotEmpty) {
-          final request = incoming[0];
+          final req = incoming[0];
+          final reqId = (req["id"] as num).toInt();
 
-          final requestId = request['id'] is String
-              ? int.parse(request['id'])
-              : request['id'] as int;
-
-          if (!_shownRequestIds.contains(requestId) && !_isDialogShowing) {
-            _shownRequestIds.add(requestId);
-
+          if (!_shownRequestIds.contains(reqId) && !_isDialogShowing) {
+            _shownRequestIds.add(reqId);
             _isDialogShowing = true;
-            await _showIncomingPopup(request);
+            await _showIncomingPopup(req);
             _isDialogShowing = false;
           }
         }
 
-        if (_stopListener) return;
+        if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
-        // 2. Check mutual match
-        final mutualMatchId = await ApiService.checkMutualForUser(userId!);
-        if (_stopListener) return;
+        // checkMutualForUser returns int? (the matchId), not a Map
+        final matchId = await ApiService.checkMutualForUser(userId!);
 
-        if (mutualMatchId != null && !_isDialogShowing) {
-          print("Mutual match detected → navigating");
+        if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
+        if (matchId != null && !_isDialogShowing) {
           _stopListener = true;
+
+          // Look up the other user from the matches list using the matchId
+          final matches = await ApiService.getMatches(userId!);
+          if (!mounted) break;
+
+          final match = matches.firstWhere(
+            (m) => (m["id"] as num).toInt() == matchId,
+            orElse: () => null,
+          );
+
+          if (match == null) break;
+
+          final otherUserId = (match["user1Id"] as num).toInt() == userId
+              ? (match["user2Id"] as num).toInt()
+              : (match["user1Id"] as num).toInt();
 
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => SuggestionsScreen(
                 userId: userId!,
-                otherUserId: mutualMatchId,
-                matchId: mutualMatchId, // TEMP until backend returns real matchId
+                otherUserId: otherUserId,
+                matchId: matchId,
               ),
             ),
-          );
+          ).then((_) {
+            _startIncomingListener();
+          });
 
-          return;
+          break;
         }
       } catch (e) {
-        print("Incoming listener error: $e");
+        print("LISTENER ERROR: $e");
       }
     }
   }
 
-  // ---------------------------------------------------------
-  // POPUP FOR INCOMING REQUEST
-  // ---------------------------------------------------------
-  Future<void> _showIncomingPopup(dynamic request) async {
-    final requesterId = request['requesterId'];
+  Future<void> _showIncomingPopup(dynamic req) async {
+    final requesterId = (req["requester_id"] as num).toInt();
+    final receiverId = (req["receiver_id"] as num).toInt();
+    final matchId = (req["match_id"] as num).toInt();
+    final reqId = (req["id"] as num).toInt();
+
     final requester = await ApiService.getUser(requesterId);
-    final requesterName = requester['name'];
+    if (!mounted) return;
+
+    final requesterName = requester["name"];
 
     await showDialog(
       context: context,
@@ -121,62 +139,39 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text("Meet Request"),
         content: Text("$requesterName wants to meet!"),
         actions: [
-          // DECLINE
           TextButton(
             onPressed: () {
-              ApiService.respond(
-                request['id'] is String
-                    ? int.parse(request['id'])
-                    : request['id'] as int,
-                false,
-              );
-              if (Navigator.canPop(context)) Navigator.pop(context);
+              ApiService.respond(reqId, false);
+              Navigator.pop(context);
             },
             child: const Text("Decline"),
           ),
-
-          // ACCEPT
           TextButton(
             onPressed: () async {
-              try {
-                print("Accept pressed");
-                _stopListener = true;
+              _stopListener = true;
 
-                final requestId = request['id'] is String
-                    ? int.parse(request['id'])
-                    : request['id'] as int;
+              await ApiService.respond(reqId, true);
+              if (!mounted) return;
 
-                await ApiService.respond(requestId, true);
-                print("ACCEPT SENT");
+              final otherUserId = requesterId == userId ? receiverId : requesterId;
 
-                final requesterId = request['requesterId'];
-                final receiverId = request['receiverId'];
+              Navigator.pop(context);
 
-                final otherUserId =
-                    requesterId == userId ? receiverId : requesterId;
+              await Future.delayed(const Duration(milliseconds: 200));
+              if (!mounted) return;
 
-                final matchId = request['matchId'];
-
-                if (Navigator.canPop(context)) Navigator.pop(context);
-
-                await Future.delayed(const Duration(milliseconds: 200));
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SuggestionsScreen(
-                      userId: userId!,
-                      otherUserId: otherUserId,
-                      matchId: matchId,
-                    ),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SuggestionsScreen(
+                    userId: userId!,
+                    otherUserId: otherUserId,
+                    matchId: matchId,
                   ),
-                );
-              } catch (e) {
-                print("ACCEPT ERROR: $e");
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Error accepting request")),
-                );
-              }
+                ),
+              ).then((_) {
+                _startIncomingListener();
+              });
             },
             child: const Text("Accept"),
           ),
@@ -185,9 +180,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ---------------------------------------------------------
-  // UI
-  // ---------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     if (userId == null) {
