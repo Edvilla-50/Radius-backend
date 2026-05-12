@@ -93,6 +93,53 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     }
   }
 
+  Widget _buildShield(String shield) {
+    switch (shield) {
+      case "green":
+        return const Icon(Icons.shield, color: Colors.green, size: 22);
+      case "yellow":
+        return const Icon(Icons.shield, color: Colors.orange, size: 22);
+      case "red":
+        return const Icon(Icons.shield, color: Colors.red, size: 22);
+      default:
+        return const Icon(Icons.shield, color: Colors.grey, size: 22);
+    }
+  }
+
+  void _confirmLocationSelection(dynamic place) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text("Choose ${place['name']}?"),
+        content: Text("Do you want to meet at this location?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              await ApiService.selectMeetLocation(
+                widget.matchId,
+                widget.userId,
+                place["fsq_id"],
+                place["name"],
+                place["location"]["formatted_address"],
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Location selected!")),
+              );
+            },
+            child: const Text("Confirm"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -110,7 +157,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       ),
       body: Column(
         children: [
-          // Suggestions list - top half
           Expanded(
             flex: 1,
             child: results.isEmpty
@@ -123,13 +169,29 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                       final place = results[index];
                       final name = place['name'] ?? "Unknown Place";
                       final address = place["location"]?["formatted_address"] ?? "No Address";
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: ListTile(
-                          leading: const Icon(Icons.place, color: Colors.blue),
-                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(address),
-                        ),
+
+                      return FutureBuilder(
+                        future: ApiService.getSafetyScore(place["fsq_id"]),
+                        builder: (context, snapshot) {
+                          String shield = "gray";
+                          if (snapshot.hasData) {
+                            final data = snapshot.data as Map<String, dynamic>?;
+                            shield = data?["shield"] ?? "gray";
+                          }
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: ListTile(
+                              leading: _buildShield(shield),
+                              title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(address),
+                              trailing: ElevatedButton(
+                                onPressed: () => _confirmLocationSelection(place),
+                                child: const Text("Select"),
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -137,7 +199,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
           const Divider(height: 1),
 
-          // Chat section - bottom half
           Expanded(
             flex: 1,
             child: Column(
@@ -158,8 +219,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
-                      // Fix: normalize senderId to int before comparing to avoid type mismatch
                       final isMe = (msg['senderId'] as num).toInt() == widget.userId;
+
                       return Align(
                         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
