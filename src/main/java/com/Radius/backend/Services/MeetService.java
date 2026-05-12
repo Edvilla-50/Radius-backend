@@ -183,9 +183,15 @@ public class MeetService {
         }
 
         String query = mapCategoryToQuery(shared.get(0));
-        return getSuggestionsByQuery(lat, lon, query);
-    }
+        Map<String, Object> interestResults = getSuggestionsByQuery(lat, lon, query);
 
+        List results = (List) interestResults.get("results");
+        if (results == null || results.isEmpty()) {
+            // fallback to general suggestions
+            return getSuggestions(lat, lon);
+        }
+        return interestResults;
+    }
     private String mapCategoryToQuery(String category) {
         return switch (category.toLowerCase()) {
             case "coffee" -> "coffee";
@@ -195,9 +201,9 @@ public class MeetService {
             case "library", "studying" -> "library";
             case "bookstore", "anime" -> "bookstore";
             case "music", "concert" -> "music";
-            case "cinema", "movies" -> "cinema";
+            case "cinema", "movies" -> "movies";
             case "bowling" -> "bowling";
-            default -> "popular";
+            default -> "restaurant";
         };
     }
 }
