@@ -232,4 +232,80 @@ class ApiService {
     );
     return jsonDecode(res.body);
   }
+
+  // ============================================================
+  // SAFETY SYSTEM (NEW)
+  // ============================================================
+
+  static Future<Map<String, dynamic>> getSafetyScore(String locationId) async {
+    final url = Uri.parse("$baseUrl/safety/score/$locationId");
+
+    final res = await http.get(url);
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to load safety score");
+    }
+
+    return jsonDecode(res.body);
+  }
+
+  static Future<void> rateLocation(
+      String locationId,
+      int userId,
+      bool wellLit,
+      bool welcoming,
+      bool atmosphere) async {
+
+    final url = Uri.parse("$baseUrl/safety/rate");
+
+    final body = jsonEncode({
+      "locationId": locationId,
+      "userId": userId,
+      "wellLit": wellLit,
+      "welcoming": welcoming,
+      "atmosphere": atmosphere,
+    });
+
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: body,
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to submit safety rating");
+    }
+  }
+
+  // ============================================================
+  // MEETUP LOCATION SELECTION (NEW)
+  // ============================================================
+
+  static Future<void> selectMeetLocation(
+      int matchId,
+      int userId,
+      String locationId,
+      String name,
+      String address) async {
+
+    final url = Uri.parse("$baseUrl/meet/select-location");
+
+    final body = jsonEncode({
+      "matchId": matchId,
+      "userId": userId,
+      "locationId": locationId,
+      "name": name,
+      "address": address,
+    });
+
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: body,
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to select meet location");
+    }
+  }
 }
