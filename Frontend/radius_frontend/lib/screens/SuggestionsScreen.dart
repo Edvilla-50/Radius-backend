@@ -107,11 +107,15 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   void _confirmLocationSelection(dynamic place) {
+    final name = (place["name"] ?? "this place").toString();
+    final address = (place["location"]?["formatted_address"] ?? "").toString();
+    final fsqId = (place["fsq_id"] ?? "").toString();
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text("Choose ${place['name']}?"),
-        content: Text("Do you want to meet at this location?"),
+        title: Text("Choose $name?"),
+        content: Text("Do you want to meet at:\n$address"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -124,9 +128,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               await ApiService.selectMeetLocation(
                 widget.matchId,
                 widget.userId,
-                place["fsq_id"],
-                place["name"],
-                place["location"]["formatted_address"],
+                fsqId,
+                name,
+                address,
               );
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -167,16 +171,24 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     itemCount: results.length,
                     itemBuilder: (context, index) {
                       final place = results[index];
-                      final name = place['name'] ?? "Unknown Place";
-                      final address = place["location"]?["formatted_address"] ?? "No Address";
+
+                      final fsqId = (place["fsq_id"] ?? "").toString();
+                      if (fsqId.isEmpty) return const SizedBox.shrink();
+
+                      final name = (place["name"] ?? "Unknown Place").toString();
+                      final location = place["location"] as Map<String, dynamic>?;
+                      final address = (location?["formatted_address"] ?? "Address unavailable").toString();
 
                       return FutureBuilder(
-                        future: ApiService.getSafetyScore(place["fsq_id"]),
+                        future: ApiService.getSafetyScore(fsqId),
                         builder: (context, snapshot) {
                           String shield = "gray";
-                          if (snapshot.hasData) {
-                            final data = snapshot.data as Map<String, dynamic>?;
-                            shield = data?["shield"] ?? "gray";
+
+                          if (snapshot.connectionState == ConnectionState.done &&
+                              snapshot.hasData &&
+                              snapshot.data is Map<String, dynamic>) {
+                            final data = snapshot.data as Map<String, dynamic>;
+                            shield = (data["shield"] ?? "gray").toString();
                           }
 
                           return Card(
@@ -234,7 +246,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            msg['content'] ?? '',
+                            (msg['content'] ?? '').toString(),
                             style: TextStyle(color: isMe ? Colors.white : Colors.black87),
                           ),
                         ),
