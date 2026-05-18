@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 @RestController
 @RequestMapping("/safety")
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*")
 public class RatingSafetyContoller {
     private final SafetyRatingService service;
 

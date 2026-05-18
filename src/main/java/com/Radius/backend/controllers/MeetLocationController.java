@@ -8,7 +8,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/meet")
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*")
 public class MeetLocationController {
 
     private final MeetLocationService service;

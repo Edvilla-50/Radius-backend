@@ -277,6 +277,18 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>?> getLocation(int matchId) async {
+    final url = Uri.parse("$baseUrl/meet/location/$matchId");
+
+    final res = await http.get(url);
+
+    if (res.statusCode == 200 && res.body.isNotEmpty) {
+      return jsonDecode(res.body);
+    }
+
+    return null; // no location selected yet
+  }
+
   // ============================================================
   // MEETUP LOCATION SELECTION (NEW)
   // ============================================================
@@ -305,6 +317,7 @@ class ApiService {
     );
 
     if (res.statusCode != 200) {
+      print("selectMeetLocation failed: ${res.statusCode} — ${res.body}"); // ADD THIS
       throw Exception("Failed to select meet location");
     }
   }
