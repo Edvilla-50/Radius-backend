@@ -19,8 +19,8 @@ public class MeetLocationController {
 
     @PostMapping("/select-location")
     public MeetLocation selectLocation(@RequestBody Map<String, Object> body) {
-        int matchId = (int) body.get("matchId");
-        int userId = (int) body.get("userId");
+        int matchId = ((Number) body.get("matchId")).intValue();
+        int userId = ((Number) body.get("userId")).intValue();
         String locationId = (String) body.get("locationId");
         String name = (String) body.get("name");
         String address = (String) body.get("address");
@@ -34,8 +34,8 @@ public class MeetLocationController {
     }
     @PostMapping("/location/accept")
     public MeetLocation accept(@RequestBody Map<String, Object> body) {
-        int matchId = (int) body.get("matchId");
-        int userId = (int) body.get("userId");
+        int matchId = ((Number) body.get("matchId")).intValue();
+        int userId = ((Number) body.get("userId")).intValue();
 
         return service.acceptLocation(matchId, userId);
     }

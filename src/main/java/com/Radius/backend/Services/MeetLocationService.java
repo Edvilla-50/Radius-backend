@@ -25,14 +25,9 @@ public class MeetLocationService {
             repo.delete(existing);
         }
 
-        MeetLocation loc = new MeetLocation(matchId, chooserId, locationId, name, address);
-
-        // Chooser automatically accepts their own suggestion
-        if (chooserId == matchId) {
-            loc.setAcceptedByA(true);
-        } else {
-            loc.setAcceptedByB(true);
-        }
+         MeetLocation loc = new MeetLocation(matchId, chooserId, locationId, name, address);
+        loc.setAcceptedByA(true);  // chooser always accepts their own pick
+        loc.setAcceptedByB(false);
 
         return repo.save(loc);
     }
@@ -47,7 +42,7 @@ public class MeetLocationService {
         MeetLocation loc = repo.findByMatchId(matchId);
         if (loc == null) return null;
 
-        // If chooserId == userId → chooser is user A
+        // Whoever accepts and isn't the chooser is "B"
         if (userId == loc.getChooserId()) {
             loc.setAcceptedByA(true);
         } else {
