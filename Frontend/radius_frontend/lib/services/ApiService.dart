@@ -236,7 +236,6 @@ class ApiService {
   // ============================================================
   // SAFETY SYSTEM (NEW)
   // ============================================================
-
   static Future<Map<String, dynamic>> getSafetyScore(String locationId) async {
     final url = Uri.parse("$baseUrl/safety/score/$locationId");
 
@@ -250,12 +249,12 @@ class ApiService {
   }
 
   static Future<void> rateLocation(
-      String locationId,
-      int userId,
-      bool wellLit,
-      bool welcoming,
-      bool atmosphere) async {
-
+    String locationId,
+    int userId,
+    bool wellLit,
+    bool welcoming,
+    bool atmosphere,
+  ) async {
     final url = Uri.parse("$baseUrl/safety/rate");
 
     final body = jsonEncode({
@@ -277,6 +276,9 @@ class ApiService {
     }
   }
 
+  // ============================================================
+  // MEETUP LOCATION
+  // ============================================================
   static Future<Map<String, dynamic>?> getLocation(int matchId) async {
     final url = Uri.parse("$baseUrl/meet/location/$matchId");
 
@@ -289,17 +291,13 @@ class ApiService {
     return null; // no location selected yet
   }
 
-  // ============================================================
-  // MEETUP LOCATION SELECTION (NEW)
-  // ============================================================
-
   static Future<void> selectMeetLocation(
-      int matchId,
-      int userId,
-      String locationId,
-      String name,
-      String address) async {
-
+    int matchId,
+    int userId,
+    String locationId,
+    String name,
+    String address,
+  ) async {
     final url = Uri.parse("$baseUrl/meet/select-location");
 
     final body = jsonEncode({
@@ -317,8 +315,38 @@ class ApiService {
     );
 
     if (res.statusCode != 200) {
-      print("selectMeetLocation failed: ${res.statusCode} — ${res.body}"); // ADD THIS
       throw Exception("Failed to select meet location");
     }
+  }
+
+  static Future<void> acceptLocation(int matchId, int userId) async {
+    final url = Uri.parse("$baseUrl/meet/location/accept");
+
+    final body = jsonEncode({
+      "matchId": matchId,
+      "userId": userId,
+    });
+
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: body,
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to accept location");
+    }
+  }
+
+  static Future<Map<String, dynamic>> checkMutual(int matchId) async {
+    final url = Uri.parse("$baseUrl/meet/location/mutual/$matchId");
+
+    final res = await http.get(url);
+
+    if (res.statusCode != 200) {
+      return {"mutual": false};
+    }
+
+    return jsonDecode(res.body);
   }
 }

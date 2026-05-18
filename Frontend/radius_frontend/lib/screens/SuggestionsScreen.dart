@@ -27,10 +27,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   bool _initialCheckDone = false;
   bool _waitingForRecipient = false;
   bool _navigated = false;
-
-  String? _lastLocationId;
-  String? _selectedPlaceName;
-  String? _selectedPlaceAddress;
+  bool _popupShown = false;
 
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -42,9 +39,11 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     _loadSuggestions();
     _loadMessages();
     _checkSelectedLocation();
+
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       _loadMessages();
       _checkSelectedLocation();
+      _checkMutualAcceptance();
     });
   }
 
@@ -60,6 +59,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     if (_navigated) return;
     _navigated = true;
     _pollTimer?.cancel();
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -95,6 +95,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       final msgs = await ApiService.getConversation(widget.matchId);
       if (!mounted) return;
       setState(() => _messages = msgs);
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
@@ -108,70 +109,81 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Future<void> _checkSelectedLocation() async {
+    if (_navigated) return;
+
     try {
       final loc = await ApiService.getLocation(widget.matchId);
       if (loc == null) return;
 
-      final locationId = loc["locationId"]?.toString();
-      if (locationId == null || locationId.isEmpty) return;
+      final chooserId = (loc["chooserId"] as num?)?.toInt();
+      final name = (loc["name"] ?? "Unknown place").toString();
+      final address = (loc["address"] ?? "").toString();
 
-      final selectedBy = (loc["userId"] as num?)?.toInt();
+      final acceptedByA = loc["acceptedByA"] == true;
+      final acceptedByB = loc["acceptedByB"] == true;
 
-      // First poll: silently record existing location so we don't
-      // trigger on stale DB data from a previous session
+      if (chooserId == null) return;
+
+      final iAmChooser = chooserId == widget.userId;
+      final iAccepted = iAmChooser ? acceptedByA : acceptedByB;
+
+      // First poll: sync state only
       if (!_initialCheckDone) {
         _initialCheckDone = true;
-        _lastLocationId = locationId;
+
+        if (iAmChooser && !iAccepted) {
+          setState(() => _waitingForRecipient = true);
+        }
+
         return;
       }
 
-      // Sender is waiting: navigate when recipient writes back
-      // (selectedBy flips from sender's id to recipient's id)
-      if (_waitingForRecipient && selectedBy != widget.userId) {
-        if (mounted) _goToMeetupMap(_selectedPlaceName ?? "", _selectedPlaceAddress ?? "");
+      // If I already accepted → ensure UI is correct
+      if (iAccepted) {
+        if (!iAmChooser && _waitingForRecipient) {
+          setState(() => _waitingForRecipient = false);
+        }
         return;
       }
 
-      // I selected this — ignore
-      if (selectedBy == widget.userId) return;
+      // If I'm the chooser → show waiting banner
+      if (iAmChooser) {
+        if (!_waitingForRecipient) {
+          setState(() => _waitingForRecipient = true);
+        }
+        return;
+      }
 
-      // New location selected by other user — show popup
-      if (_lastLocationId != locationId) {
-        _lastLocationId = locationId;
-        if (mounted) _showIncomingLocationPopup(loc);
+      // I'm the recipient and haven't accepted → show popup ONCE
+      if (!_popupShown) {
+        _popupShown = true;
+        _showIncomingLocationPopup(name, address);
       }
     } catch (e) {
       debugPrint("_checkSelectedLocation error: $e");
     }
   }
 
-  // Recipient sees this — tapping "Let's go!" writes back so sender knows
-  void _showIncomingLocationPopup(Map<String, dynamic> loc) {
-    final name = loc["name"] ?? "Unknown place";
-    final address = loc["address"] ?? "";
-    final locationId = loc["locationId"] ?? "";
-
+  void _showIncomingLocationPopup(String name, String address) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: Text("Meet at $name?"),
-        content: Text(address.isNotEmpty ? address : "Your match has chosen a meetup spot!"),
+        content: Text(address.isNotEmpty ? address : "Your match chose a meetup spot."),
         actions: [
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              // Write back with recipient's userId — sender's poll detects this flip
               try {
-                await ApiService.selectMeetLocation(
-                  widget.matchId,
-                  widget.userId,
-                  locationId,
-                  name,
-                  address,
-                );
-              } catch (_) {}
-              if (mounted) _goToMeetupMap(name, address);
+                await ApiService.acceptLocation(widget.matchId, widget.userId);
+
+                if (mounted) {
+                  setState(() => _waitingForRecipient = false);
+                }
+              } catch (e) {
+                debugPrint("acceptLocation error: $e");
+              }
             },
             child: const Text("Let's go!"),
           ),
@@ -180,9 +192,30 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     );
   }
 
+  Future<void> _checkMutualAcceptance() async {
+    if (_navigated) return;
+
+    try {
+      final res = await ApiService.checkMutual(widget.matchId);
+
+      if (res["mutual"] == true) {
+        _pollTimer?.cancel();
+        _navigated = true;
+
+        final name = (res["name"] ?? "Meetup spot").toString();
+        final address = (res["address"] ?? "").toString();
+
+        if (mounted) _goToMeetupMap(name, address);
+      }
+    } catch (e) {
+      debugPrint("_checkMutualAcceptance error: $e");
+    }
+  }
+
   Future<void> _sendMessage() async {
     final text = _msgController.text.trim();
     if (text.isEmpty) return;
+
     _msgController.clear();
     try {
       await ApiService.sendMessage(widget.matchId, widget.userId, text);
@@ -199,7 +232,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: Text("Choose $name?"),
-        content: Text("Do you want to meet at:\n$address"),
+        content: Text(address),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -216,12 +249,11 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   name,
                   address,
                 );
+
                 if (!mounted) return;
+
                 setState(() {
-                  _lastLocationId = fsqId;
                   _waitingForRecipient = true;
-                  _selectedPlaceName = name;
-                  _selectedPlaceAddress = address;
                 });
               } catch (e) {
                 debugPrint("selectMeetLocation error: $e");
@@ -270,13 +302,17 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.green),
+                      strokeWidth: 2,
+                      color: Colors.green,
+                    ),
                   ),
                   SizedBox(width: 10),
                   Text(
                     "Waiting for them to accept...",
                     style: TextStyle(
-                        color: Colors.green, fontWeight: FontWeight.bold),
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -297,17 +333,24 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                       final place = results[index];
                       final fsqId = (place["fsq_place_id"] ?? "").toString();
                       if (fsqId.isEmpty) return const SizedBox.shrink();
+
                       final name = place["name"] ?? "Unknown Place";
                       final address =
                           place["location"]?["formatted_address"] ??
                               "Address unavailable";
+
                       return Card(
                         margin: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         child: ListTile(
-                          title: Text(name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold)),
+                          title: Text(
+                            name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           subtitle: Text(address),
                           trailing: ElevatedButton(
                             onPressed: _waitingForRecipient
@@ -330,47 +373,52 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   color: Colors.green.shade50,
                   child: const Text(
                     "Chat",
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Colors.green),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.green,
+                    ),
                   ),
                 ),
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
                       final senderId =
                           (msg["senderId"] as num?)?.toInt() ?? -1;
                       final isMe = senderId == widget.userId;
+
                       return Align(
-                        alignment: isMe
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
+                        alignment:
+                            isMe ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
-                            color: isMe
-                                ? Colors.green
-                                : Colors.grey.shade200,
+                            color:
+                                isMe ? Colors.green : Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
                             msg["content"] ?? "",
                             style: TextStyle(
-                                color: isMe
-                                    ? Colors.white
-                                    : Colors.black87),
+                              color: isMe ? Colors.white : Colors.black87,
+                            ),
                           ),
                         ),
                       );
@@ -399,7 +447,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                               borderSide: BorderSide.none,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
                           ),
                           onSubmitted: (_) => _sendMessage(),
                         ),
@@ -408,8 +458,11 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                       CircleAvatar(
                         backgroundColor: Colors.green,
                         child: IconButton(
-                          icon: const Icon(Icons.send,
-                              color: Colors.white, size: 18),
+                          icon: const Icon(
+                            Icons.send,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                           onPressed: _sendMessage,
                         ),
                       ),
