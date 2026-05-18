@@ -32,4 +32,17 @@ public class MeetLocationController {
     public MeetLocation getLocation(@PathVariable int matchId) {
         return service.getLocation(matchId);
     }
+    @PostMapping("/location/accept")
+    public MeetLocation accept(@RequestBody Map<String, Object> body) {
+        int matchId = (int) body.get("matchId");
+        int userId = (int) body.get("userId");
+
+        return service.acceptLocation(matchId, userId);
+    }
+    @GetMapping("/location/mutual/{matchId}")
+    public Map<String, Object> mutual(@PathVariable int matchId) {
+        return service.checkMutual(matchId);
+    }
+
+
 }

@@ -11,6 +11,8 @@ public class MeetLocation {
     private String name;
     private String address;
     private Long timeStamp;
+    private boolean acceptedByA;
+    private boolean acceptedByB;
 
     public MeetLocation(){}
 
@@ -42,5 +44,17 @@ public class MeetLocation {
     }
     public Long getTimeStamp() { 
         return timeStamp; 
+    }
+    public boolean isAcceptedByA() { 
+        return acceptedByA; 
+    }
+    public void setAcceptedByA(boolean acceptedByA) { 
+        this.acceptedByA = acceptedByA; 
+    }
+    public boolean isAcceptedByB() { 
+        return acceptedByB; 
+    }
+    public void setAcceptedByB(boolean acceptedByB) { 
+        this.acceptedByB = acceptedByB; 
     }
 }
