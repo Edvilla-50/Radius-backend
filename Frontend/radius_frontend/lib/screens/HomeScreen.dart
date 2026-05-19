@@ -87,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           final matchId = (mutual["matchId"] as num).toInt();
           final otherUserId = (mutual["otherUserId"] as num).toInt();
-
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -98,7 +97,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ).then((_) {
-            _startIncomingListener();
+            if(mounted){
+              _startIncomingListener();
+            }
           });
 
           break;
@@ -157,7 +158,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ).then((_) {
-                _startIncomingListener();
+                if(mounted){
+                  _startIncomingListener();
+                }
               });
             },
             child: const Text("Accept"),

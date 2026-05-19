@@ -26,8 +26,14 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   bool _initialCheckDone = false;
   bool _waitingForRecipient = false;
+
+  // _navigated is the single source of truth. Once true, nothing touches the
+  // server or the navigator again. Set it synchronously before any await.
   bool _navigated = false;
   bool _popupShown = false;
+
+  // True when this user was the one who chose the location.
+  bool _iAmChooser = false;
 
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -41,6 +47,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     _checkSelectedLocation();
 
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (_navigated) return;
       _loadMessages();
       _checkSelectedLocation();
       _checkMutualAcceptance();
@@ -49,17 +56,39 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   @override
   void dispose() {
+    debugPrint("DEBUG SuggestionsScreen disposed (matchId=${widget.matchId})");
     _pollTimer?.cancel();
+    _pollTimer = null;
     _msgController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _goToMeetupMap(String name, String address) {
+  // -------------------------------------------------------------------------
+  // Navigation
+  // -------------------------------------------------------------------------
+
+  Future<void> _goToMeetupMap(String name, String address) async {
+    // Flip synchronously first — any in-flight async callbacks will bail after
+    // their await when they re-check this flag.
     if (_navigated) return;
     _navigated = true;
+
     _pollTimer?.cancel();
     _pollTimer = null;
+
+    // Only the chooser clears the DB row. If the recipient cleared it first,
+    // the chooser's next checkMutual would see mutual:false and get stuck.
+    // We await so the row is only deleted after polling has fully stopped.
+    if (_iAmChooser) {
+      try {
+        await ApiService.clearMeetLocation(widget.matchId);
+      } catch (e) {
+        debugPrint("clearMeetLocation error: $e");
+      }
+    }
+
+    if (!mounted) return;
 
     Navigator.pushReplacement(
       context,
@@ -73,6 +102,10 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       ),
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Data loading
+  // -------------------------------------------------------------------------
 
   Future<void> _loadSuggestions() async {
     try {
@@ -109,11 +142,17 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     } catch (_) {}
   }
 
+  // -------------------------------------------------------------------------
+  // Polling logic
+  // -------------------------------------------------------------------------
+
   Future<void> _checkSelectedLocation() async {
     if (_navigated) return;
 
     try {
       final loc = await ApiService.getLocation(widget.matchId);
+      if (_navigated) return; // re-check after await
+
       if (loc == null) return;
 
       final chooserId = (loc["chooserId"] as num?)?.toInt();
@@ -128,29 +167,31 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       final iAmChooser = chooserId == widget.userId;
       final iAccepted = iAmChooser ? acceptedByA : acceptedByB;
 
-      // First poll: sync state only
+      // Track whether this user is the chooser so _goToMeetupMap knows
+      // who should clear the location.
+      _iAmChooser = iAmChooser;
+
+      // First poll: sync state only, do not show popup yet
       if (!_initialCheckDone) {
         _initialCheckDone = true;
-
         if (iAmChooser && !iAccepted) {
-          setState(() => _waitingForRecipient = true);
+          if (mounted) setState(() => _waitingForRecipient = true);
         }
-
         return;
       }
 
-      // If I already accepted → ensure UI is correct
+      // I already accepted — keep UI consistent
       if (iAccepted) {
         if (!iAmChooser && _waitingForRecipient) {
-          setState(() => _waitingForRecipient = false);
+          if (mounted) setState(() => _waitingForRecipient = false);
         }
         return;
       }
 
-      // If I'm the chooser → show waiting banner
+      // I'm the chooser → show waiting banner
       if (iAmChooser) {
         if (!_waitingForRecipient) {
-          setState(() => _waitingForRecipient = true);
+          if (mounted) setState(() => _waitingForRecipient = true);
         }
         return;
       }
@@ -165,23 +206,45 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     }
   }
 
+  Future<void> _checkMutualAcceptance() async {
+    if (_navigated) return;
+
+    try {
+      final res = await ApiService.checkMutual(widget.matchId);
+      if (_navigated) return; // re-check after await
+
+      debugPrint("DEBUG Checkmutual: $res");
+
+      if (res["mutual"] == true) {
+        final name = (res["name"] ?? "Meetup spot").toString();
+        final address = (res["address"] ?? "").toString();
+        if (mounted) await _goToMeetupMap(name, address);
+      }
+    } catch (e) {
+      debugPrint("_checkMutualAcceptance error: $e");
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // UI actions
+  // -------------------------------------------------------------------------
+
   void _showIncomingLocationPopup(String name, String address) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: Text("Meet at $name?"),
-        content: Text(address.isNotEmpty ? address : "Your match chose a meetup spot."),
+        content: Text(
+          address.isNotEmpty ? address : "Your match chose a meetup spot.",
+        ),
         actions: [
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
                 await ApiService.acceptLocation(widget.matchId, widget.userId);
-
-                if (mounted) {
-                  setState(() => _waitingForRecipient = false);
-                }
+                if (mounted) setState(() => _waitingForRecipient = false);
               } catch (e) {
                 debugPrint("acceptLocation error: $e");
               }
@@ -191,24 +254,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _checkMutualAcceptance() async {
-    if (_navigated) return;
-
-    try {
-      final res = await ApiService.checkMutual(widget.matchId);
-      print("DEBUG Checkmutual: $res");
-      if (res["mutual"] == true) {
-
-        final name = (res["name"] ?? "Meetup spot").toString();
-        final address = (res["address"] ?? "").toString();
-
-        if (mounted) _goToMeetupMap(name, address);
-      }
-    } catch (e) {
-      debugPrint("_checkMutualAcceptance error: $e");
-    }
   }
 
   Future<void> _sendMessage() async {
@@ -224,7 +269,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   void _confirmLocationSelection(dynamic place) {
     final name = (place["name"] ?? "this place").toString();
-    final address = (place["location"]?["formatted_address"] ?? "").toString();
+    final address =
+        (place["location"]?["formatted_address"] ?? "").toString();
     final fsqId = (place["fsq_place_id"] ?? "").toString();
 
     showDialog(
@@ -248,12 +294,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   name,
                   address,
                 );
-
                 if (!mounted) return;
-
-                setState(() {
-                  _waitingForRecipient = true;
-                });
+                _iAmChooser = true;
+                setState(() => _waitingForRecipient = true);
               } catch (e) {
                 debugPrint("selectMeetLocation error: $e");
                 if (mounted) {
@@ -269,6 +312,10 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       ),
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Build
+  // -------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -330,7 +377,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     itemCount: results.length,
                     itemBuilder: (context, index) {
                       final place = results[index];
-                      final fsqId = (place["fsq_place_id"] ?? "").toString();
+                      final fsqId =
+                          (place["fsq_place_id"] ?? "").toString();
                       if (fsqId.isEmpty) return const SizedBox.shrink();
 
                       final name = place["name"] ?? "Unknown Place";
@@ -400,8 +448,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                       final isMe = senderId == widget.userId;
 
                       return Align(
-                        alignment:
-                            isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isMe
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           padding: const EdgeInsets.symmetric(
@@ -409,8 +458,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color:
-                                isMe ? Colors.green : Colors.grey.shade200,
+                            color: isMe
+                                ? Colors.green
+                                : Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(

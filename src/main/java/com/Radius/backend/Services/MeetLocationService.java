@@ -4,6 +4,7 @@ import com.Radius.backend.Bases.MeetLocationRepository;
 import com.Radius.backend.Entity.MeetLocation;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -18,14 +19,13 @@ public class MeetLocationService {
     // User selects a location
     public MeetLocation chooseLocation(int matchId, int chooserId,
                                        String locationId, String name, String address) {
-
         // Remove old selection if it exists
         MeetLocation existing = repo.findByMatchId(matchId);
         if (existing != null) {
             repo.delete(existing);
         }
 
-         MeetLocation loc = new MeetLocation(matchId, chooserId, locationId, name, address);
+        MeetLocation loc = new MeetLocation(matchId, chooserId, locationId, name, address);
         loc.setAcceptedByA(true);  // chooser always accepts their own pick
         loc.setAcceptedByB(false);
 
@@ -42,7 +42,6 @@ public class MeetLocationService {
         MeetLocation loc = repo.findByMatchId(matchId);
         if (loc == null) return null;
 
-        // Whoever accepts and isn't the chooser is "B"
         if (userId == loc.getChooserId()) {
             loc.setAcceptedByA(true);
         } else {
@@ -52,22 +51,29 @@ public class MeetLocationService {
         return repo.save(loc);
     }
 
-    // Check if both users accepted
+    // Check if both users accepted.
+    // Uses HashMap (not Map.of) so null name/address don't throw NPE.
     public Map<String, Object> checkMutual(int matchId) {
         MeetLocation loc = repo.findByMatchId(matchId);
-        if (loc == null) return Map.of("mutual", false);
+
+        Map<String, Object> result = new HashMap<>();
+
+        if (loc == null) {
+            result.put("mutual", false);
+            return result;
+        }
 
         boolean mutual = loc.isAcceptedByA() && loc.isAcceptedByB();
-
-        return Map.of(
-                "mutual", mutual,
-                "name", loc.getName(),
-                "address", loc.getAddress()
-        );
+        result.put("mutual", mutual);
+        result.put("name",    loc.getName()    != null ? loc.getName()    : "");
+        result.put("address", loc.getAddress() != null ? loc.getAddress() : "");
+        return result;
     }
+
+    // Called by the Flutter client AFTER both sides have navigated away.
     public void clearLocation(int matchId) {
         MeetLocation existing = repo.findByMatchId(matchId);
-        if (existing != null){ 
+        if (existing != null) {
             repo.delete(existing);
         }
     }
