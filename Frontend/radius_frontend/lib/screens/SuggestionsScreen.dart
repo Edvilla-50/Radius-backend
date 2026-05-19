@@ -59,6 +59,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     if (_navigated) return;
     _navigated = true;
     _pollTimer?.cancel();
+    _pollTimer = null;
 
     Navigator.pushReplacement(
       context,
@@ -197,10 +198,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
     try {
       final res = await ApiService.checkMutual(widget.matchId);
-
+      print("DEBUG Checkmutual: $res");
       if (res["mutual"] == true) {
-        _pollTimer?.cancel();
-        _navigated = true;
 
         final name = (res["name"] ?? "Meetup spot").toString();
         final address = (res["address"] ?? "").toString();

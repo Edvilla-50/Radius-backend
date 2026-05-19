@@ -66,6 +66,11 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  static Future<void> clearMeetLocation(int matchId) async {
+    await http.delete(Uri.parse("$baseUrl/meet/location/$matchId"));
+  }
+
+
   static Future<void> sendMeetRequest(int userId, int matchId) async {
     final url = Uri.parse("$baseUrl/match/meet/request");
 

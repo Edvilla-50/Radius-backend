@@ -65,4 +65,10 @@ public class MeetLocationService {
                 "address", loc.getAddress()
         );
     }
+    public void clearLocation(int matchId) {
+        MeetLocation existing = repo.findByMatchId(matchId);
+        if (existing != null){ 
+            repo.delete(existing);
+        }
+    }
 }
