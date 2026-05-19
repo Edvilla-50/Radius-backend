@@ -69,17 +69,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   // -------------------------------------------------------------------------
 
   Future<void> _goToMeetupMap(String name, String address) async {
-    // Flip synchronously first — any in-flight async callbacks will bail after
-    // their await when they re-check this flag.
     if (_navigated) return;
     _navigated = true;
 
     _pollTimer?.cancel();
     _pollTimer = null;
 
-    // Only the chooser clears the DB row. If the recipient cleared it first,
-    // the chooser's next checkMutual would see mutual:false and get stuck.
-    // We await so the row is only deleted after polling has fully stopped.
     if (_iAmChooser) {
       try {
         await ApiService.clearMeetLocation(widget.matchId);
@@ -151,9 +146,21 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
     try {
       final loc = await ApiService.getLocation(widget.matchId);
-      if (_navigated) return; // re-check after await
+      if (_navigated) return;
 
       if (loc == null) return;
+
+      // 🔥 EXPIRATION CHECK
+      if (loc["expired"] == true) {
+        _pollTimer?.cancel();
+        if (!_navigated) {
+          _navigated = true;
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, "/home");
+          }
+        }
+        return;
+      }
 
       final chooserId = (loc["chooserId"] as num?)?.toInt();
       final name = (loc["name"] ?? "Unknown place").toString();
@@ -167,8 +174,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       final iAmChooser = chooserId == widget.userId;
       final iAccepted = iAmChooser ? acceptedByA : acceptedByB;
 
-      // Track whether this user is the chooser so _goToMeetupMap knows
-      // who should clear the location.
       _iAmChooser = iAmChooser;
 
       // First poll: sync state only, do not show popup yet
@@ -211,7 +216,19 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
     try {
       final res = await ApiService.checkMutual(widget.matchId);
-      if (_navigated) return; // re-check after await
+      if (_navigated) return;
+
+      // 🔥 EXPIRATION CHECK
+      if (res["expired"] == true) {
+        _pollTimer?.cancel();
+        if (!_navigated) {
+          _navigated = true;
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, "/home");
+          }
+        }
+        return;
+      }
 
       debugPrint("DEBUG Checkmutual: $res");
 

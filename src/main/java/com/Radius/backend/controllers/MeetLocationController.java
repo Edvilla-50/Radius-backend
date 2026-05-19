@@ -41,9 +41,10 @@ public class MeetLocationController {
     }
 
     @GetMapping("/location/{matchId}")
-    public MeetLocation getLocation(@PathVariable int matchId) {
+    public Map<String, Object> getLocation(@PathVariable int matchId) {
         return service.getLocation(matchId);
     }
+
     @DeleteMapping("/location/{matchId}")
     public void clearLocation(@PathVariable int matchId) {
         service.clearLocation(matchId);

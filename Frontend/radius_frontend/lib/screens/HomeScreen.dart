@@ -87,7 +87,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
           final matchId = (mutual["matchId"] as num).toInt();
           final otherUserId = (mutual["otherUserId"] as num).toInt();
-          Navigator.push(
+
+          // pushReplacement so HomeScreen is removed from the stack.
+          // SuggestionsScreen then pushReplacement to MeetupMapScreen,
+          // so there is no back-stack entry that can re-trigger the listener.
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => SuggestionsScreen(
@@ -96,16 +100,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 matchId: matchId,
               ),
             ),
-          ).then((_) {
-            if(mounted){
-              _startIncomingListener();
-            }
-          });
+          );
 
           break;
         }
       } catch (e) {
-        print("LISTENER ERROR: $e");
+        debugPrint("LISTENER ERROR: $e");
       }
     }
   }
@@ -141,14 +141,16 @@ class _HomeScreenState extends State<HomeScreen> {
               await ApiService.respond(reqId, true);
               if (!mounted) return;
 
-              final otherUserId = requesterId == userId ? receiverId : requesterId;
+              final otherUserId =
+                  requesterId == userId ? receiverId : requesterId;
 
-              Navigator.pop(context);
+              Navigator.pop(context); // close dialog
 
               await Future.delayed(const Duration(milliseconds: 200));
               if (!mounted) return;
 
-              Navigator.push(
+              // pushReplacement so HomeScreen leaves the stack entirely.
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (_) => SuggestionsScreen(
@@ -157,11 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     matchId: matchId,
                   ),
                 ),
-              ).then((_) {
-                if(mounted){
-                  _startIncomingListener();
-                }
-              });
+              );
             },
             child: const Text("Accept"),
           ),
@@ -196,9 +194,11 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map), label: 'Map'),
-          NavigationDestination(icon: Icon(Icons.message), label: 'Messages'),
+          NavigationDestination(
+              icon: Icon(Icons.message), label: 'Messages'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-          NavigationDestination(icon: Icon(Icons.interests), label: 'Trait Stack'),
+          NavigationDestination(
+              icon: Icon(Icons.interests), label: 'Trait Stack'),
           NavigationDestination(
             icon: Icon(Icons.emergency, color: Colors.red),
             selectedIcon: Icon(Icons.emergency, color: Colors.red),

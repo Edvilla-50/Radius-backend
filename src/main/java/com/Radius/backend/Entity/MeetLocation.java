@@ -1,20 +1,28 @@
 package com.Radius.backend.Entity;
+
 import jakarta.persistence.*;
+import java.time.Instant;
+
 @Entity
 public class MeetLocation {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
+
     private int matchId;
     private int chooserId;
     private String locationId;
     private String name;
     private String address;
-    private Long timeStamp;
+
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt = Instant.now();
+
     private boolean acceptedByA;
     private boolean acceptedByB;
 
-    public MeetLocation(){}
+    public MeetLocation() {}
 
     public MeetLocation(int matchId, int chooserId, String locationId, String name, String address) {
         this.matchId = matchId;
@@ -22,39 +30,50 @@ public class MeetLocation {
         this.locationId = locationId;
         this.name = name;
         this.address = address;
-        this.timeStamp = System.currentTimeMillis();
+        this.createdAt = Instant.now();
     }
-    public Long getId() { 
-        return id; 
+
+    public long getId() {
+        return id;
     }
-    public int getMatchId() { 
-        return matchId; 
+
+    public int getMatchId() {
+        return matchId;
     }
-    public int getChooserId() { 
-        return chooserId; 
+
+    public int getChooserId() {
+        return chooserId;
     }
-    public String getLocationId() { 
-        return locationId; 
+
+    public String getLocationId() {
+        return locationId;
     }
-    public String getName() { 
-        return name; 
+
+    public String getName() {
+        return name;
     }
-    public String getAddress() { 
-        return address; 
+
+    public String getAddress() {
+        return address;
     }
-    public Long getTimeStamp() { 
-        return timeStamp; 
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
-    public boolean isAcceptedByA() { 
-        return acceptedByA; 
+
+    public boolean isAcceptedByA() {
+        return acceptedByA;
     }
-    public void setAcceptedByA(boolean acceptedByA) { 
-        this.acceptedByA = acceptedByA; 
+
+    public void setAcceptedByA(boolean acceptedByA) {
+        this.acceptedByA = acceptedByA;
     }
-    public boolean isAcceptedByB() { 
-        return acceptedByB; 
+
+    public boolean isAcceptedByB() {
+        return acceptedByB;
     }
-    public void setAcceptedByB(boolean acceptedByB) { 
-        this.acceptedByB = acceptedByB; 
+
+    public void setAcceptedByB(boolean acceptedByB) {
+        this.acceptedByB = acceptedByB;
     }
 }

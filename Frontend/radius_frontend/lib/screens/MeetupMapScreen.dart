@@ -32,20 +32,27 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
 
   Timer? _pollTimer;
   StreamSubscription? _locationStream;
+  Timer? _expireTimer;
 
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-      print("DEBUG: MeetupMapScreen initState");
+    debugPrint("DEBUG: MeetupMapScreen initState");
     _init();
+
+    _expireTimer = Timer(const Duration(hours: 1), () {
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, "/home");
+    });
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
     _locationStream?.cancel();
+    _expireTimer?.cancel();
     super.dispose();
   }
 
@@ -61,8 +68,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     } catch (e) {
       debugPrint("MeetupMapScreen _init error: $e");
     } finally {
-      // Always stop loading regardless of errors
-      print("DEBUG: _init finally, mounted=$mounted, loading will be false");
+      debugPrint("DEBUG: _init finally, mounted=$mounted, loading will be false");
       if (mounted) setState(() => _loading = false);
     }
 
@@ -79,8 +85,10 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
   Future<void> _geocodePlace() async {
     try {
       final midpoint = await ApiService.getMidpoint(
-              widget.userId, widget.otherUserId)
-          .timeout(const Duration(seconds: 10));
+        widget.userId,
+        widget.otherUserId,
+      ).timeout(const Duration(seconds: 10));
+
       final lat = (midpoint["lat"] as num?)?.toDouble();
       final lon = (midpoint["lon"] as num?)?.toDouble();
       if (lat != null && lon != null) {
@@ -99,11 +107,15 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           .timeout(const Duration(seconds: 10));
 
       if (mounted) {
-        setState(() => _myLocation = LatLng(position.latitude, position.longitude));
+        setState(() =>
+            _myLocation = LatLng(position.latitude, position.longitude));
       }
 
       await ApiService.updateLocation(
-          widget.userId, position.latitude, position.longitude);
+        widget.userId,
+        position.latitude,
+        position.longitude,
+      );
 
       _locationStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
@@ -115,7 +127,10 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           setState(() => _myLocation = LatLng(pos.latitude, pos.longitude));
         }
         await ApiService.updateLocation(
-            widget.userId, pos.latitude, pos.longitude);
+          widget.userId,
+          pos.latitude,
+          pos.longitude,
+        );
       });
     } catch (e) {
       debugPrint("_startMyLocation error: $e");
@@ -139,6 +154,9 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // No back arrow — this is a terminal screen. Going back would
+        // re-trigger HomeScreen's listener and push SuggestionsScreen again.
+        automaticallyImplyLeading: false,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -245,7 +263,10 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                         _mapController.move(_myLocation!, 15.0);
                       }
                     },
-                    child: const Icon(Icons.my_location, color: Colors.white),
+                    child: const Icon(
+                      Icons.my_location,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
