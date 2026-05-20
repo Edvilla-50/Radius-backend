@@ -10,6 +10,8 @@ class MeetupMapScreen extends StatefulWidget {
   final int otherUserId;
   final String placeName;
   final String placeAddress;
+  final double? placeLat;  // ← new: exact coords from Foursquare JSON
+  final double? placeLon;  // ← new
 
   const MeetupMapScreen({
     super.key,
@@ -17,6 +19,8 @@ class MeetupMapScreen extends StatefulWidget {
     required this.otherUserId,
     required this.placeName,
     required this.placeAddress,
+    this.placeLat,
+    this.placeLon,
   });
 
   @override
@@ -40,11 +44,20 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
   void initState() {
     super.initState();
     debugPrint("DEBUG: MeetupMapScreen initState");
+
+    // Use the coordinates passed directly if available — no geocoding needed.
+    if (widget.placeLat != null && widget.placeLon != null) {
+      _placeLocation = LatLng(widget.placeLat!, widget.placeLon!);
+    }
+
     _init();
 
     _expireTimer = Timer(const Duration(hours: 1), () {
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, "/home");
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        "/home",
+        (route) => false,
+      );
     });
   }
 
@@ -58,7 +71,10 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
 
   Future<void> _init() async {
     try {
-      await _geocodePlace();
+      // Only fall back to getMidpoint if we don't already have coordinates.
+      if (_placeLocation == null) {
+        await _geocodePlaceFromMidpoint();
+      }
       await _startMyLocation();
       await _fetchOtherLocation();
 
@@ -68,7 +84,8 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     } catch (e) {
       debugPrint("MeetupMapScreen _init error: $e");
     } finally {
-      debugPrint("DEBUG: _init finally, mounted=$mounted, loading will be false");
+      debugPrint(
+          "DEBUG: _init finally, mounted=$mounted, loading will be false");
       if (mounted) setState(() => _loading = false);
     }
 
@@ -82,7 +99,8 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     });
   }
 
-  Future<void> _geocodePlace() async {
+  // Only called when no lat/lon was passed (fallback).
+  Future<void> _geocodePlaceFromMidpoint() async {
     try {
       final midpoint = await ApiService.getMidpoint(
         widget.userId,
@@ -95,7 +113,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
         _placeLocation = LatLng(lat, lon);
       }
     } catch (e) {
-      debugPrint("_geocodePlace error: $e");
+      debugPrint("_geocodePlaceFromMidpoint error: $e");
     }
   }
 
@@ -107,8 +125,8 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           .timeout(const Duration(seconds: 10));
 
       if (mounted) {
-        setState(() =>
-            _myLocation = LatLng(position.latitude, position.longitude));
+        setState(
+            () => _myLocation = LatLng(position.latitude, position.longitude));
       }
 
       await ApiService.updateLocation(
@@ -154,8 +172,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // No back arrow — this is a terminal screen. Going back would
-        // re-trigger HomeScreen's listener and push SuggestionsScreen again.
         automaticallyImplyLeading: false,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,12 +207,29 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                         if (_placeLocation != null)
                           Marker(
                             point: _placeLocation!,
-                            width: 50,
-                            height: 50,
-                            child: const Icon(
-                              Icons.location_pin,
-                              color: Colors.red,
-                              size: 50,
+                            width: 60,
+                            height: 60,
+                            child: Column(
+                              children: const [
+                                Icon(
+                                  Icons.location_pin,
+                                  color: Colors.red,
+                                  size: 40,
+                                ),
+                                // Small label under the pin
+                                SizedBox(
+                                  width: 60,
+                                  child: Text(
+                                    "Meet here",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         if (_myLocation != null)
@@ -263,10 +296,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                         _mapController.move(_myLocation!, 15.0);
                       }
                     },
-                    child: const Icon(
-                      Icons.my_location,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.my_location, color: Colors.white),
                   ),
                 ),
               ],

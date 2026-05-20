@@ -26,14 +26,17 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   bool _initialCheckDone = false;
   bool _waitingForRecipient = false;
-
-  // _navigated is the single source of truth. Once true, nothing touches the
-  // server or the navigator again. Set it synchronously before any await.
   bool _navigated = false;
   bool _popupShown = false;
-
-  // True when this user was the one who chose the location.
   bool _iAmChooser = false;
+
+  // Coordinates of the selected place, passed to MeetupMapScreen for the pin.
+  double? _selectedPlaceLat;
+  double? _selectedPlaceLon;
+
+  // Once we see a location row exist, a subsequent null means the backend
+  // scheduler deleted it (1-hour expiry). Show a message and go home.
+  bool _locationEverExisted = false;
 
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -68,7 +71,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   // Navigation
   // -------------------------------------------------------------------------
 
-  Future<void> _goToMeetupMap(String name, String address) async {
+  Future<void> _goToMeetupMap(String name, String address, {double? lat, double? lon}) async {
     if (_navigated) return;
     _navigated = true;
 
@@ -93,7 +96,51 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
           otherUserId: widget.otherUserId,
           placeName: name,
           placeAddress: address,
+          placeLat: lat ?? _selectedPlaceLat,
+          placeLon: lon ?? _selectedPlaceLon,
         ),
+      ),
+    );
+  }
+
+  // Shown when the 1-hour scheduler deletes the session.
+  // Does NOT navigate — just cancels polling and tells the user.
+  // They can press the back button (AppBar) to leave manually, or
+  // you can add a button if you prefer.
+  void _handleSessionExpired() {
+    if (_navigated) return;
+    _navigated = true;
+
+    _pollTimer?.cancel();
+    _pollTimer = null;
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("Session Expired"),
+        content: const Text(
+          "The meetup session has expired after 1 hour. "
+          "Go back and send a new meet request!",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // close dialog
+              // SuggestionsScreen was pushed with pushReplacement from
+              // HomeScreen, so the stack root IS HomeScreen. Popping here
+              // would leave a blank screen. Instead push a named route
+              // so the app resets cleanly to HomeScreen with a fresh state.
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                "/home",
+                (route) => false,
+              );
+            },
+            child: const Text("OK"),
+          ),
+        ],
       ),
     );
   }
@@ -148,24 +195,21 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       final loc = await ApiService.getLocation(widget.matchId);
       if (_navigated) return;
 
-      if (loc == null) return;
-
-      // 🔥 EXPIRATION CHECK
-      if (loc["expired"] == true) {
-        _pollTimer?.cancel();
-        if (!_navigated) {
-          _navigated = true;
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, "/home");
-          }
-        }
+      if (loc == null) {
+        // Row existed before but is now gone → scheduler deleted it.
+        if (_locationEverExisted) _handleSessionExpired();
         return;
       }
+
+      _locationEverExisted = true;
+
+      // Cache coords from server so the recipient has them too.
+      _selectedPlaceLat ??= (loc["lat"] as num?)?.toDouble();
+      _selectedPlaceLon ??= (loc["lon"] as num?)?.toDouble();
 
       final chooserId = (loc["chooserId"] as num?)?.toInt();
       final name = (loc["name"] ?? "Unknown place").toString();
       final address = (loc["address"] ?? "").toString();
-
       final acceptedByA = loc["acceptedByA"] == true;
       final acceptedByB = loc["acceptedByB"] == true;
 
@@ -176,7 +220,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
       _iAmChooser = iAmChooser;
 
-      // First poll: sync state only, do not show popup yet
       if (!_initialCheckDone) {
         _initialCheckDone = true;
         if (iAmChooser && !iAccepted) {
@@ -185,7 +228,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         return;
       }
 
-      // I already accepted — keep UI consistent
       if (iAccepted) {
         if (!iAmChooser && _waitingForRecipient) {
           if (mounted) setState(() => _waitingForRecipient = false);
@@ -193,7 +235,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         return;
       }
 
-      // I'm the chooser → show waiting banner
       if (iAmChooser) {
         if (!_waitingForRecipient) {
           if (mounted) setState(() => _waitingForRecipient = true);
@@ -201,7 +242,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         return;
       }
 
-      // I'm the recipient and haven't accepted → show popup ONCE
       if (!_popupShown) {
         _popupShown = true;
         _showIncomingLocationPopup(name, address);
@@ -218,24 +258,14 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       final res = await ApiService.checkMutual(widget.matchId);
       if (_navigated) return;
 
-      // 🔥 EXPIRATION CHECK
-      if (res["expired"] == true) {
-        _pollTimer?.cancel();
-        if (!_navigated) {
-          _navigated = true;
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, "/home");
-          }
-        }
-        return;
-      }
-
       debugPrint("DEBUG Checkmutual: $res");
 
       if (res["mutual"] == true) {
-        final name = (res["name"] ?? "Meetup spot").toString();
+        final name    = (res["name"]    ?? "Meetup spot").toString();
         final address = (res["address"] ?? "").toString();
-        if (mounted) await _goToMeetupMap(name, address);
+        final lat     = (res["lat"] as num?)?.toDouble();
+        final lon     = (res["lon"] as num?)?.toDouble();
+        if (mounted) await _goToMeetupMap(name, address, lat: lat, lon: lon);
       }
     } catch (e) {
       debugPrint("_checkMutualAcceptance error: $e");
@@ -289,6 +319,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     final address =
         (place["location"]?["formatted_address"] ?? "").toString();
     final fsqId = (place["fsq_place_id"] ?? "").toString();
+    final lat = (place["latitude"] as num?)?.toDouble();
+    final lon = (place["longitude"] as num?)?.toDouble();
 
     showDialog(
       context: context,
@@ -310,9 +342,14 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                   fsqId,
                   name,
                   address,
+                  lat,
+                  lon,
                 );
                 if (!mounted) return;
                 _iAmChooser = true;
+                _locationEverExisted = true;
+                _selectedPlaceLat = lat;
+                _selectedPlaceLon = lon;
                 setState(() => _waitingForRecipient = true);
               } catch (e) {
                 debugPrint("selectMeetLocation error: $e");
@@ -348,6 +385,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("Suggested Places"),
         backgroundColor: Colors.green,
       ),

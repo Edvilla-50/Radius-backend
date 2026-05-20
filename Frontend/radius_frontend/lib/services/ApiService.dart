@@ -302,15 +302,19 @@ class ApiService {
     String locationId,
     String name,
     String address,
+    double? lat,
+    double? lon,
   ) async {
     final url = Uri.parse("$baseUrl/meet/select-location");
 
     final body = jsonEncode({
-      "matchId": matchId,
-      "userId": userId,
+      "matchId":    matchId,
+      "userId":     userId,
       "locationId": locationId,
-      "name": name,
-      "address": address,
+      "name":       name,
+      "address":    address,
+      "lat":        lat,
+      "lon":        lon,
     });
 
     final res = await http.post(

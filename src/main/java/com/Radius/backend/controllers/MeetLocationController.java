@@ -19,22 +19,23 @@ public class MeetLocationController {
 
     @PostMapping("/select-location")
     public MeetLocation selectLocation(@RequestBody Map<String, Object> body) {
-        int matchId = ((Number) body.get("matchId")).intValue();
-        int userId = ((Number) body.get("userId")).intValue();
+        int matchId       = ((Number) body.get("matchId")).intValue();
+        int userId        = ((Number) body.get("userId")).intValue();
         String locationId = (String) body.get("locationId");
-        String name = (String) body.get("name");
-        String address = (String) body.get("address");
-        return service.chooseLocation(matchId, userId, locationId, name, address);
+        String name       = (String) body.get("name");
+        String address    = (String) body.get("address");
+        Double lat = body.get("lat") != null ? ((Number) body.get("lat")).doubleValue() : null;
+        Double lon = body.get("lon") != null ? ((Number) body.get("lon")).doubleValue() : null;
+        return service.chooseLocation(matchId, userId, locationId, name, address, lat, lon);
     }
 
     @PostMapping("/location/accept")
     public MeetLocation accept(@RequestBody Map<String, Object> body) {
         int matchId = ((Number) body.get("matchId")).intValue();
-        int userId = ((Number) body.get("userId")).intValue();
+        int userId  = ((Number) body.get("userId")).intValue();
         return service.acceptLocation(matchId, userId);
     }
 
-    // mutual MUST be before /{matchId} or Spring grabs "mutual" as the path variable
     @GetMapping("/location/mutual/{matchId}")
     public Map<String, Object> mutual(@PathVariable int matchId) {
         return service.checkMutual(matchId);

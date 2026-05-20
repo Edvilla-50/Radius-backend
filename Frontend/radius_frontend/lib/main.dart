@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:radius_frontend/screens/registrationScreen.dart';
 import 'screens/HomeScreen.dart';
 import 'screens/LoginScreen.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -18,11 +19,11 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       initialRoute: '/login',
-      routes:{
+      routes: {
         '/login': (context) => LoginScreen(),
         '/register': (_) => const RegistrationScreen(),
-        '/home': (context) => const HomeScreen(),
-      } 
+        '/home': (context) => HomeScreen(),
+      },
     );
   }
 }
