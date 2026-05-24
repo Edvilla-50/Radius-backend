@@ -78,7 +78,10 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     _pollTimer?.cancel();
     _pollTimer = null;
 
-    if (_iAmChooser) {
+    // The RECIPIENT clears the location — not the chooser.
+    // If the chooser clears it first, the recipient's next checkMutual
+    // sees expired:true and never navigates.
+    if (!_iAmChooser) {
       try {
         await ApiService.clearMeetLocation(widget.matchId);
       } catch (e) {
@@ -195,8 +198,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       final loc = await ApiService.getLocation(widget.matchId);
       if (_navigated) return;
 
-      if (loc == null) {
-        // Row existed before but is now gone → scheduler deleted it.
+      if (loc == null || loc["expired"] == true) {
+        // No row or backend marked it expired → scheduler deleted it.
         if (_locationEverExisted) _handleSessionExpired();
         return;
       }
@@ -259,6 +262,11 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       if (_navigated) return;
 
       debugPrint("DEBUG Checkmutual: $res");
+
+      if (res["expired"] == true) {
+        if (_locationEverExisted) _handleSessionExpired();
+        return;
+      }
 
       if (res["mutual"] == true) {
         final name    = (res["name"]    ?? "Meetup spot").toString();

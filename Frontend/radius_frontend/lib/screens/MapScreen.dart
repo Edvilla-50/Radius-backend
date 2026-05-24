@@ -32,6 +32,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _locationStream?.cancel();
+    _locationStream = null;
     super.dispose();
   }
 
@@ -40,15 +41,19 @@ class _MapScreenState extends State<MapScreen> {
       await Geolocator.requestPermission();
 
       final position = await Geolocator.getCurrentPosition();
+
+      if (!mounted) return;
       setState(() {
         _myLocation = LatLng(position.latitude, position.longitude);
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         _mapController.move(_myLocation!, 15.0);
       });
 
-      await ApiService.updateLocation(widget.userId, position.latitude, position.longitude);
+      await ApiService.updateLocation(
+          widget.userId, position.latitude, position.longitude);
 
       _locationStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
@@ -56,13 +61,15 @@ class _MapScreenState extends State<MapScreen> {
           distanceFilter: 10,
         ),
       ).listen((Position position) async {
+        if (!mounted) return; // ← key fix
         setState(() {
           _myLocation = LatLng(position.latitude, position.longitude);
         });
-        await ApiService.updateLocation(widget.userId, position.latitude, position.longitude);
+        await ApiService.updateLocation(
+            widget.userId, position.latitude, position.longitude);
       });
     } catch (e) {
-      print('error: $e');
+      debugPrint('MapScreen _getLocation error: $e');
     }
   }
 
@@ -82,14 +89,17 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _scan() async {
+    if (!mounted) return;
     setState(() => _scanning = true);
     try {
       final matches = await ApiService.getMatches(widget.userId);
+      if (!mounted) return;
       setState(() {
         _matches = matches;
         _scanning = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _scanning = false);
     }
   }
@@ -102,12 +112,13 @@ class _MapScreenState extends State<MapScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: _myLocation ?? LatLng(31.7619, -106.4850),
+              initialCenter: _myLocation ?? const LatLng(31.7619, -106.4850),
               initialZoom: 15.0,
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate:
+                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.radius.app',
               ),
               MarkerLayer(
@@ -117,7 +128,11 @@ class _MapScreenState extends State<MapScreen> {
                       point: _myLocation!,
                       width: 40,
                       height: 40,
-                      child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
+                      child: const Icon(
+                        Icons.person_pin_circle,
+                        color: Colors.blue,
+                        size: 40,
+                      ),
                     ),
                 ],
               ),
@@ -132,18 +147,22 @@ class _MapScreenState extends State<MapScreen> {
                 onPressed: _scanning ? null : _scan,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 50, vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
                 child: _scanning
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('SCAN', style: TextStyle(
-                        fontSize: 20,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      )),
+                    : const Text(
+                        'SCAN',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -163,7 +182,8 @@ class _MapScreenState extends State<MapScreen> {
                   itemBuilder: (context, index) {
                     final match = _matches[index];
                     return ListTile(
-                      leading: const Icon(Icons.person, color: Colors.blue),
+                      leading:
+                          const Icon(Icons.person, color: Colors.blue),
                       title: Text(match['name']),
                       subtitle: Text(
                         '${(match['score'] * 100).toStringAsFixed(0)}%',
@@ -177,17 +197,21 @@ class _MapScreenState extends State<MapScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ProfilePreviewScreen(
-                              html: match['htmlProfile'] ?? '<h1>${match['name']}</h1><p>No profile yet</p>',
+                              html: match['htmlProfile'] ??
+                                  '<h1>${match['name']}</h1><p>No profile yet</p>',
                             ),
                           ),
                         );
                       },
                       trailing: ElevatedButton(
-                        onPressed: () => _sendRequest((match['id'] as num).toInt()),
+                        onPressed: () =>
+                            _sendRequest((match['id'] as num).toInt()),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.lightGreenAccent,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         child: const Text(
                           "Request",
