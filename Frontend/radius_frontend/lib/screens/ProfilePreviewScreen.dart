@@ -30,7 +30,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
         """;
 
     controller = WebViewController()
-      ..loadHtmlString(safeHtml);
+  ..loadHtmlString(safeHtml, baseUrl: 'https://www.radius-create.com');
   }
 
   @override
