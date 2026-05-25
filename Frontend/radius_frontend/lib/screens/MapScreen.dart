@@ -39,29 +39,24 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _getLocation() async {
     try {
       await Geolocator.requestPermission();
-
       final position = await Geolocator.getCurrentPosition();
-
       if (!mounted) return;
       setState(() {
         _myLocation = LatLng(position.latitude, position.longitude);
       });
-
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _mapController.move(_myLocation!, 15.0);
       });
-
       await ApiService.updateLocation(
           widget.userId, position.latitude, position.longitude);
-
       _locationStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,
         ),
       ).listen((Position position) async {
-        if (!mounted) return; // ← key fix
+        if (!mounted) return;
         setState(() {
           _myLocation = LatLng(position.latitude, position.longitude);
         });
@@ -181,9 +176,9 @@ class _MapScreenState extends State<MapScreen> {
                   itemCount: _matches.length,
                   itemBuilder: (context, index) {
                     final match = _matches[index];
+                    final matchId = (match['id'] as num).toInt();
                     return ListTile(
-                      leading:
-                          const Icon(Icons.person, color: Colors.blue),
+                      leading: const Icon(Icons.person, color: Colors.blue),
                       title: Text(match['name']),
                       subtitle: Text(
                         '${(match['score'] * 100).toStringAsFixed(0)}%',
@@ -197,15 +192,13 @@ class _MapScreenState extends State<MapScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ProfilePreviewScreen(
-                              html: match['htmlProfile'] ??
-                                  '<h1>${match['name']}</h1><p>No profile yet</p>',
+                              userId: matchId.toString(),
                             ),
                           ),
                         );
                       },
                       trailing: ElevatedButton(
-                        onPressed: () =>
-                            _sendRequest((match['id'] as num).toInt()),
+                        onPressed: () => _sendRequest(matchId),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.lightGreenAccent,
                           padding: const EdgeInsets.symmetric(

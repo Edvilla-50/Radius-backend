@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class ProfilePreviewScreen extends StatefulWidget {
-  final String html;
-  const ProfilePreviewScreen({super.key, required this.html});
+  final String userId;
+  const ProfilePreviewScreen({super.key, required this.userId});
 
   @override
   State<ProfilePreviewScreen> createState() => _ProfilePreviewScreenState();
@@ -15,29 +15,11 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   @override
   void initState() {
     super.initState();
-
-    // Prevent WebView crash by ensuring HTML is never empty
-    final rawHtml = widget.html.isNotEmpty
-        ? widget.html
-        : """
-          <html>
-            <body style="font-family: Arial; padding: 20px;">
-              <h2>No Profile Found</h2>
-              <p>You haven't created a profile yet.</p>
-              <p>Please customize your profile in the Profile Editor.</p>
-            </body>
-          </html>
-        """;
-
-    // Rewrite relative image URLs to absolute so the WebView can load them
-    final safeHtml = rawHtml.replaceAll(
-      'src="/',
-      'src="https://www.radius-create.com/',
-    );
-
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadHtmlString(safeHtml, baseUrl: 'https://www.radius-create.com');
+      ..loadRequest(Uri.parse(
+        'https://www.radius-create.com/api/getProfile.php?id=${widget.userId}',
+      ));
   }
 
   @override

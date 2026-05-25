@@ -110,12 +110,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.preview),
-            onPressed: () async {
-              final html = await ApiService.getProfileHtml(widget.userId);
+            onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ProfilePreviewScreen(html: html),
+                  builder: (context) => ProfilePreviewScreen(
+                    userId: widget.userId.toString(),
+                  ),
                 ),
               );
             },
@@ -136,7 +137,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ⭐ NEW BANNER ADDED HERE
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -155,13 +155,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-
             const Text(
               'Choose a Template',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -174,12 +172,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
             const Text('Bio',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-
             TextField(
               maxLines: 3,
               decoration: const InputDecoration(
@@ -188,12 +184,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               onChanged: (val) => setState(() => _bio = val),
             ),
-
             const SizedBox(height: 20),
             const Text('Favorite Quote',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-
             TextField(
               decoration: const InputDecoration(
                 hintText: 'What\'s your favorite quote?',
