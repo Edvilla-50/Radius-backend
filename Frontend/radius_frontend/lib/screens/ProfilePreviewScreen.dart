@@ -17,7 +17,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     super.initState();
 
     // Prevent WebView crash by ensuring HTML is never empty
-    final safeHtml = widget.html.isNotEmpty
+    final rawHtml = widget.html.isNotEmpty
         ? widget.html
         : """
           <html>
@@ -29,8 +29,15 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
           </html>
         """;
 
+    // Rewrite relative image URLs to absolute so the WebView can load them
+    final safeHtml = rawHtml.replaceAll(
+      'src="/',
+      'src="https://www.radius-create.com/',
+    );
+
     controller = WebViewController()
-  ..loadHtmlString(safeHtml, baseUrl: 'https://www.radius-create.com');
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadHtmlString(safeHtml, baseUrl: 'https://www.radius-create.com');
   }
 
   @override
