@@ -8,29 +8,29 @@ import com.twilio.Twilio;
 @Service
 public class SMSService {
 
-    public static final String ACCOUNT_SID = System.getenv("TWILIO_ACCOUNT_SID");
-    public static final String AUTH_TOKEN = System.getenv("TWILIO_AUTH_TOKEN");
-
-    private static final String MESSAGING_SERVICE_SID = "MG1d7566df91520a0533beda03c34d57ef";
+    private final String accountSid;
+    private final String authToken;
+    private final String messagingServiceSid;
 
     public SMSService() {
-        // Disable Twilio unless credentials exist
-        if (ACCOUNT_SID != null && AUTH_TOKEN != null) {
-            Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
-        }
+        this.accountSid = System.getenv("TWILIO_ACCOUNT_SID");
+        this.authToken = System.getenv("TWILIO_AUTH_TOKEN");
+        this.messagingServiceSid = System.getenv("TWILIO_MESSAGING_SERVICE_SID");
+
+        Twilio.init(this.accountSid, this.authToken);
     }
 
     public String sendSms(String to, String body) {
-        if (ACCOUNT_SID == null || AUTH_TOKEN == null) {
-            return "SMS disabled (missing Twilio credentials)";
+        try {
+            Message message = Message.creator(
+                    new PhoneNumber(to),
+                    messagingServiceSid,
+                    body
+            ).create();
+            return "Sent: " + message.getSid();
+        } catch (Exception e) {
+            System.err.println("SMS failed: " + e.getMessage());
+            return "Failed: " + e.getMessage();
         }
-
-        Message.creator(
-                new PhoneNumber(to),
-                MESSAGING_SERVICE_SID,
-                body
-        ).create();
-
-        return "Msg sent";
     }
 }
