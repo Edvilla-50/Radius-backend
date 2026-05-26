@@ -1,6 +1,6 @@
 package com.Radius.backend.Services;
 
-import com.Radius.backend.Models.User;
+import com.Radius.backend.Entity.User;
 import org.springframework.stereotype.Service;
 
 @Service

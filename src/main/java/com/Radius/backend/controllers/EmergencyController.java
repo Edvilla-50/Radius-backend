@@ -1,8 +1,8 @@
-package com.Radius.backend.Controllers;
+package com.Radius.backend.controllers;
 
-import com.Radius.backend.Models.User;
+import com.Radius.backend.Entity.User;
 import com.Radius.backend.Services.EmergencyAlertService;
-import com.Radius.backend.Repositories.UserRepository;
+import com.Radius.backend.Bases.UserRepository;          // ← fixed
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
