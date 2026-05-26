@@ -1,11 +1,14 @@
 package com.Radius.backend.Services;
 
+import com.Radius.backend.Models.User;
+import org.springframework.stereotype.Service;
+
 @Service
 public class EmergencyAlertService {
 
-    private final SmsService smsService;
+    private final SMSService smsService;
 
-    public EmergencyAlertService(SmsService smsService) {
+    public EmergencyAlertService(SMSService smsService) {
         this.smsService = smsService;
     }
 
@@ -27,4 +30,3 @@ public class EmergencyAlertService {
         }
     }
 }
-
