@@ -2,7 +2,7 @@ package com.Radius.backend.controllers;
 
 import com.Radius.backend.Entity.User;
 import com.Radius.backend.Bases.UserRepository;
-import com.Radius.backend.Services.SentDmService;
+import com.Radius.backend.Services.TextBeltService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +18,7 @@ public class EmergencyController {
     private UserRepository userRepository;
 
     @Autowired
-    private SentDmService sentDmService;
+    private TextBeltService textBeltService;
 
     @PostMapping("/alert")
     public ResponseEntity<?> sendAlert(@RequestBody Map<String, Object> body) {
@@ -40,7 +40,7 @@ public class EmergencyController {
             return ResponseEntity.badRequest().body("No emergency contact on file");
         }
 
-        sentDmService.sendEmergencyAlert(emergencyPhone, type, lat, lon, note);
+        textBeltService.sendEmergencyAlert(emergencyPhone, type, lat, lon, note);
 
         return ResponseEntity.ok().build();
     }
