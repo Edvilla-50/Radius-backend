@@ -31,6 +31,7 @@ public class TextBeltService {
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-        restTemplate.postForEntity(BASE_URL, request, String.class);
+        ResponseEntity<String> response = restTemplate.postForEntity(BASE_URL, request, String.class);
+        System.out.println("TextBelt response: " + response.getStatusCode() + " - " + response.getBody());
     }
 }

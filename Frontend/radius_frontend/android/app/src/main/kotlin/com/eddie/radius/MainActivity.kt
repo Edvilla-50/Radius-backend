@@ -1,4 +1,4 @@
-package com.eddie.radius
+package com.eddie.radiusapp
 
 import io.flutter.embedding.android.FlutterActivity
 
