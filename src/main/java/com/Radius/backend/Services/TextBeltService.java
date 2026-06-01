@@ -17,10 +17,12 @@ public class TextBeltService {
     private static final String BASE_URL = "https://textbelt.com/text";
 
     public void sendEmergencyAlert(String toPhone, String emergencyType, double lat, double lon, String note) {
+        String mapsLink = "https://www.google.com/maps/search/?api=1&query=" + lat + "," + lon;
+
         String message = "EMERGENCY ALERT\n" +
             "Situation: " + emergencyType + "\n" +
-            "Lat: " + lat + ", Lon: " + lon +
-            (note != null && !note.isEmpty() ? "\nNote: " + note : "");
+            "Location: " + mapsLink + "\n" +
+            (note != null && !note.isEmpty() ? "Note: " + note : "");
 
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("phone", toPhone);
