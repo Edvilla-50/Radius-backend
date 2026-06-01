@@ -23,6 +23,7 @@ public class User {
     private int minAgePref;
     private int maxAgePref;
     private String emergencyPhone;
+    @Transient
     private TraitStack stack = new TraitStack();
     @Transient
     private double score;
