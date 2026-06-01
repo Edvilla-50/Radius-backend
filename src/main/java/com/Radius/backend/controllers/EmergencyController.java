@@ -1,35 +1,47 @@
 package com.Radius.backend.controllers;
 
 import com.Radius.backend.Entity.User;
-import com.Radius.backend.Services.EmergencyAlertService;
-import com.Radius.backend.Bases.UserRepository;          // ← fixed
+import com.Radius.backend.Bases.UserRepository;
+import com.Radius.backend.Services.SentDmService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+import java.util.Optional;
+
 @RestController
-@RequestMapping("/api/emergency")
+@RequestMapping("/emergency")
 public class EmergencyController {
 
-    private final EmergencyAlertService emergencyAlertService;
-    private final UserRepository userRepository;
+    @Autowired
+    private UserRepository userRepository;
 
-    public EmergencyController(EmergencyAlertService emergencyAlertService, UserRepository userRepository) {
-        this.emergencyAlertService = emergencyAlertService;
-        this.userRepository = userRepository;
-    }
+    @Autowired
+    private SentDmService sentDmService;
 
     @PostMapping("/alert")
-    public ResponseEntity<String> sendAlert(
-            @RequestParam Long userId,
-            @RequestParam double lat,
-            @RequestParam double lon,
-            @RequestParam(required = false, defaultValue = "") String note) {
+    public ResponseEntity<?> sendAlert(@RequestBody Map<String, Object> body) {
+        int userId = (int) body.get("userId");
+        double lat = ((Number) body.get("lat")).doubleValue();
+        double lon = ((Number) body.get("lon")).doubleValue();
+        String type = (String) body.get("type");
+        String note = (String) body.getOrDefault("note", "");
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        Optional<User> userOpt = userRepository.findById((long) userId);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found");
+        }
 
-        emergencyAlertService.sendEmergencyAlert(user, lat, lon, note);
+        User user = userOpt.get();
+        String emergencyPhone = user.getEmergencyPhone();
 
-        return ResponseEntity.ok("Emergency alert sent");
+        if (emergencyPhone == null || emergencyPhone.isBlank()) {
+            return ResponseEntity.badRequest().body("No emergency contact on file");
+        }
+
+        sentDmService.sendEmergencyAlert(emergencyPhone, type, lat, lon, note);
+
+        return ResponseEntity.ok().build();
     }
 }

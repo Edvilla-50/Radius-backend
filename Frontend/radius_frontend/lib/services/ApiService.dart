@@ -130,7 +130,17 @@ class ApiService {
       throw Exception("Failed to update interests");
     }
   }
+  static Future<void> updatePreferredDistance(int userId, double distance) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/user/$userId/preferred-distance"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"distance": distance}),
+    );
 
+    if (res.statusCode != 200) {
+      throw Exception("Failed to update preferred distance");
+    }
+  }
   static Future<void> updateProfileHtml(int userId, String html) async {
     final res = await http.put(
       Uri.parse("$baseUrl/user/$userId/profile-html"),

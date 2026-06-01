@@ -22,9 +22,7 @@ public class User {
     private double perferredDistance;
     private int minAgePref;
     private int maxAgePref;
-    private String emergencyPhoneOne;//forced phone numbers that users must put in case a meetup is unsafe
-    private String emergencyPhoneTwo;//another one 
-    @Transient
+    private String emergencyPhone;
     private TraitStack stack = new TraitStack();
     @Transient
     private double score;
@@ -119,20 +117,12 @@ public class User {
     public void resetScore(){
         this.score = 0;
     }
-    public String getEmergencyPhoneOne() {
-        return emergencyPhoneOne;
+    public String getEmergencyPhone() {
+        return emergencyPhone;
     }
 
-    public void setEmergencyPhoneOne(String emergencyPhoneOne) {
-        this.emergencyPhoneOne = emergencyPhoneOne;
-    }
-
-    public String getEmergencyPhoneTwo() {
-        return emergencyPhoneTwo;
-    }
-
-    public void setEmergencyPhoneTwo(String emergencyPhoneTwo) {
-        this.emergencyPhoneTwo = emergencyPhoneTwo;
+    public void setEmergencyPhone(String emergencyPhone) {
+        this.emergencyPhone = emergencyPhone;
     }
     public String getHtmlProfile(){
         return this.htmlProfile;

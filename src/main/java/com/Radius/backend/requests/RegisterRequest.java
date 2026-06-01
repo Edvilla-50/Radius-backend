@@ -4,6 +4,7 @@ public class RegisterRequest {
     private String email;
     private String password;
     private String name;
+    private String emergencyPhone;
 
     public String getEmail() { 
         return email; 
@@ -13,5 +14,8 @@ public class RegisterRequest {
     }
     public String getName() { 
         return name; 
+    }
+    public String getEmergencyPhone() { 
+        return emergencyPhone; 
     }
 }

@@ -43,6 +43,7 @@ dependencies:
   webview_flutter: ^4.4.0
   shared_preferences: ^2.2.2
   change_app_package_name: ^1.1.0
+  flutter_launcher_icons: ^0.14.4
 
 
 dev_dependencies:
@@ -97,3 +98,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"

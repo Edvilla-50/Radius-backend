@@ -14,7 +14,7 @@ plugins {
 }
 
 android {
-    namespace = "com.eddie.radius"
+    namespace = "com.eddie.radiusapp"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -28,11 +28,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.eddie.radius"
+        applicationId = "com.eddie.radiusapp"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 3
-        versionName = "1.0.1"
+        versionCode = 1
+        versionName = "1.0.0"
     }
 
     signingConfigs {

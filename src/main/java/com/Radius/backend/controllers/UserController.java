@@ -91,7 +91,7 @@ public class UserController {
         user.setEmail(req.getEmail());
         user.setPassword(encoder.encode(req.getPassword()));
         user.setName(req.getName());
-
+        user.setEmergencyPhone(req.getEmergencyPhone());
         repo.save(user);
 
         return ResponseEntity.ok(Map.of("userId", user.getId()));
@@ -109,5 +109,12 @@ public class UserController {
             "name", user.getName()
         ));
     }
-
+    @PostMapping("/{id}/preferred-distance")
+    public ResponseEntity<?> updatePreferredDistance(@PathVariable long id, @RequestBody Map<String, Double> body) {
+        User user = repo.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found: " + id));
+        user.setPerferredDistance(body.get("distance"));
+        repo.save(user);
+        return ResponseEntity.ok().build();
+    }
 }

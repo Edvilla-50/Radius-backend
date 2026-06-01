@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 class RegistrationScreen extends StatefulWidget {
@@ -13,6 +14,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
 
   bool loading = false;
   String? errorMessage;
@@ -21,8 +23,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     final name = nameController.text.trim();
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
+    final phone = phoneController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+    if (name.isEmpty || email.isEmpty || password.isEmpty || phone.isEmpty) {
       setState(() => errorMessage = "All fields are required");
       return;
     }
@@ -36,6 +39,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       "name": name,
       "email": email,
       "password": password,
+      "emergencyPhone": phone,
     };
 
     final response = await http.post(
@@ -47,7 +51,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     setState(() => loading = false);
 
     if (response.statusCode == 200) {
-      Navigator.pop(context); // go back to login
+      Navigator.pop(context);
     } else {
       setState(() => errorMessage = "Registration failed");
     }
@@ -62,8 +66,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         child: Column(
           children: [
             if (errorMessage != null)
-              Text(errorMessage!,
-                  style: TextStyle(color: Colors.red, fontSize: 14)),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(errorMessage!,
+                    style: TextStyle(color: Colors.red, fontSize: 14)),
+              ),
 
             TextField(
               controller: nameController,
@@ -77,6 +84,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
             TextField(
               controller: emailController,
+              keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
                 labelText: "Email",
                 border: OutlineInputBorder(),
@@ -90,6 +98,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               obscureText: true,
               decoration: InputDecoration(
                 labelText: "Password",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            SizedBox(height: 12),
+
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: InputDecoration(
+                labelText: "Emergency Contact Number",
+                hintText: "12223334444",
+                prefixText: "+",
                 border: OutlineInputBorder(),
               ),
             ),

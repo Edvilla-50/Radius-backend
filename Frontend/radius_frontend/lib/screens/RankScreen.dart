@@ -14,6 +14,7 @@ class _RankScreenState extends State<RankScreen> {
   List<Map<String, dynamic>> _interests = [];
   bool _loading = true;
   bool _saving = false;
+  double _preferredDistance = 1.0;
 
   @override
   void initState() {
@@ -26,6 +27,7 @@ class _RankScreenState extends State<RankScreen> {
       final user = await ApiService.getUser(widget.userId);
       setState(() {
         _interests = List<Map<String, dynamic>>.from(user['interests']);
+        _preferredDistance = (user['preferredDistance'] as num?)?.toDouble() ?? 1.0;
         _loading = false;
       });
     } catch (e) {
@@ -50,7 +52,7 @@ class _RankScreenState extends State<RankScreen> {
     setState(() => _saving = false);
   }
 
-  Future<void> _showInterestDetailsDialog(Map<String, dynamic> interest) async{
+  Future<void> _showInterestDetailsDialog(Map<String, dynamic> interest) async {
     String? difficulty;
     bool moneyNeeded = false;
     bool disAccessible = false;
@@ -58,23 +60,23 @@ class _RankScreenState extends State<RankScreen> {
 
     await showDialog(
       context: context,
-      builder:(context) => StatefulBuilder(
+      builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text ('Customize ${interest['name']}'),
+          title: Text('Customize ${interest['name']}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children:[
+            children: [
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Difficulty'),
                 items: ['Easy', 'Medium', 'Hard']
-                .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                .toList(),
+                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                    .toList(),
                 onChanged: (val) => setDialogState(() => difficulty = val),
               ),
               SwitchListTile(
                 title: const Text('Costs Money'),
                 value: moneyNeeded,
-                onChanged: (val)=> setDialogState(()=> moneyNeeded = val),
+                onChanged: (val) => setDialogState(() => moneyNeeded = val),
               ),
               SwitchListTile(
                 title: const Text('Accessible to people with disabilities'),
@@ -90,9 +92,9 @@ class _RankScreenState extends State<RankScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text ('Cancel'),
+              child: const Text('Cancel'),
             ),
-           ElevatedButton(
+            ElevatedButton(
               onPressed: () {
                 setState(() {
                   _interests.add({
@@ -105,7 +107,7 @@ class _RankScreenState extends State<RankScreen> {
                 });
                 Navigator.pop(context);
               },
-              child: const Text('Add'), 
+              child: const Text('Add'),
             ),
           ],
         ),
@@ -162,17 +164,17 @@ class _RankScreenState extends State<RankScreen> {
         title: const Text('My Trait Stack'),
         actions: [
           _saving
-            ? const Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(color: Colors.white),
-              )
-            : IconButton(
-                icon: const Icon(Icons.save),
-                onPressed: _saveInterests,
-              ),
+              ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircularProgressIndicator(color: Colors.white),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.save),
+                  onPressed: _saveInterests,
+                ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(  
+      floatingActionButton: FloatingActionButton(
         onPressed: _showAddInterestDialog,
         child: const Icon(Icons.add),
       ),
@@ -185,6 +187,30 @@ class _RankScreenState extends State<RankScreen> {
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Meet distance: ${_preferredDistance.toStringAsFixed(1)} mi",
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Slider(
+                  value: _preferredDistance,
+                  min: 1.0,
+                  max: 5.0,
+                  divisions: 8,
+                  label: "${_preferredDistance.toStringAsFixed(1)} mi",
+                  onChanged: (val) => setState(() => _preferredDistance = val),
+                  onChangeEnd: (val) =>
+                      ApiService.updatePreferredDistance(widget.userId, val),
+                ),
+              ],
+            ),
+          ),
+
           Expanded(
             child: DragAndDropLists(
               children: [
@@ -203,19 +229,19 @@ class _RankScreenState extends State<RankScreen> {
                         ),
                         title: Text(interest['name']),
                         trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                _interests.removeAt(index);
-                              });
-                            },
-                          ),
-                          const Icon(Icons.drag_handle),
-                        ],
-                      ),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  _interests.removeAt(index);
+                                });
+                              },
+                            ),
+                            const Icon(Icons.drag_handle),
+                          ],
+                        ),
                       ),
                     );
                   }).toList(),
