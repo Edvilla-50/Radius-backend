@@ -26,6 +26,7 @@ public class TextBeltService {
         body.add("phone", toPhone);
         body.add("message", message);
         body.add("key", apiKey);
+        body.add("sender", "Radius");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
