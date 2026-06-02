@@ -18,8 +18,7 @@ public class MeetCleanupJob {
         this.meetRequestRepository = meetRequestRepository;
         this.meetLocationRepository = meetLocationRepository;
     }
-
-    @Scheduled(fixedRate = 300000) // every 5 minutes
+    @Scheduled(fixedRate = 3600000) // every hour
     @Transactional
     public void cleanupOldMeets() {
         meetRequestRepository.deleteExpired();
