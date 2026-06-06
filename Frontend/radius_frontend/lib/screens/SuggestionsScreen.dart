@@ -41,6 +41,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   Timer? _pollTimer;
+  Timer? _expireTimer; // 1-hour hard expiry
 
   @override
   void initState() {
@@ -55,6 +56,18 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       _checkSelectedLocation();
       _checkMutualAcceptance();
     });
+
+    // Hard 1-hour expiry — navigates home without requiring user input.
+    _expireTimer = Timer(const Duration(hours: 1), () {
+      if (!mounted || _navigated) return;
+      _navigated = true;
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        "/home",
+        (route) => false,
+      );
+    });
   }
 
   @override
@@ -62,6 +75,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     debugPrint("DEBUG SuggestionsScreen disposed (matchId=${widget.matchId})");
     _pollTimer?.cancel();
     _pollTimer = null;
+    _expireTimer?.cancel();
+    _expireTimer = null;
     _msgController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -77,6 +92,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
     _pollTimer?.cancel();
     _pollTimer = null;
+    _expireTimer?.cancel();
+    _expireTimer = null;
 
     // The RECIPIENT clears the location — not the chooser.
     // If the chooser clears it first, the recipient's next checkMutual
@@ -106,45 +123,21 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     );
   }
 
-  // Shown when the 1-hour scheduler deletes the session.
-  // Does NOT navigate — just cancels polling and tells the user.
-  // They can press the back button (AppBar) to leave manually, or
-  // you can add a button if you prefer.
+  // Navigates home immediately — no dialog, no waiting for user input.
   void _handleSessionExpired() {
     if (_navigated) return;
     _navigated = true;
 
     _pollTimer?.cancel();
     _pollTimer = null;
+    _expireTimer?.cancel();
+    _expireTimer = null;
 
     if (!mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text("Session Expired"),
-        content: const Text(
-          "The meetup session has expired after 1 hour. "
-          "Go back and send a new meet request!",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // close dialog
-              // SuggestionsScreen was pushed with pushReplacement from
-              // HomeScreen, so the stack root IS HomeScreen. Popping here
-              // would leave a blank screen. Instead push a named route
-              // so the app resets cleanly to HomeScreen with a fresh state.
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                "/home",
-                (route) => false,
-              );
-            },
-            child: const Text("OK"),
-          ),
-        ],
-      ),
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      "/home",
+      (route) => false,
     );
   }
 

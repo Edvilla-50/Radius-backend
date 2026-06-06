@@ -31,8 +31,8 @@ android {
         applicationId = "com.eddie.radiusapp"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 8
+        versionName = "1.0.5"
     }
 
     signingConfigs {
