@@ -76,7 +76,9 @@ public class MeetLocationService {
         Map<String, Object> result = new HashMap<>();
 
         if (loc == null) {
-            result.put("expired", true);
+            // No location selected yet — not expired, just waiting
+            result.put("expired", false);
+            result.put("mutual", false);
             return result;
         }
 
@@ -97,7 +99,6 @@ public class MeetLocationService {
         result.put("lon",      loc.getLon());
         return result;
     }
-
     public void clearLocation(int matchId) {
         MeetLocation existing = repo.findByMatchId(matchId);
         if (existing != null) repo.delete(existing);

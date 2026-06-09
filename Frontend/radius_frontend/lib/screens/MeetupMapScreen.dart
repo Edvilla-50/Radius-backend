@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/ApiService.dart';
+import '../screens/EmergencyScreen.dart';
 import 'dart:async';
 
 class MeetupMapScreen extends StatefulWidget {
@@ -10,8 +11,8 @@ class MeetupMapScreen extends StatefulWidget {
   final int otherUserId;
   final String placeName;
   final String placeAddress;
-  final double? placeLat;  // ← new: exact coords from Foursquare JSON
-  final double? placeLon;  // ← new
+  final double? placeLat;
+  final double? placeLon;
 
   const MeetupMapScreen({
     super.key,
@@ -45,7 +46,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     super.initState();
     debugPrint("DEBUG: MeetupMapScreen initState");
 
-    // Use the coordinates passed directly if available — no geocoding needed.
     if (widget.placeLat != null && widget.placeLon != null) {
       _placeLocation = LatLng(widget.placeLat!, widget.placeLon!);
     }
@@ -71,7 +71,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
 
   Future<void> _init() async {
     try {
-      // Only fall back to getMidpoint if we don't already have coordinates.
       if (_placeLocation == null) {
         await _geocodePlaceFromMidpoint();
       }
@@ -84,8 +83,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     } catch (e) {
       debugPrint("MeetupMapScreen _init error: $e");
     } finally {
-      debugPrint(
-          "DEBUG: _init finally, mounted=$mounted, loading will be false");
+      debugPrint("DEBUG: _init finally, mounted=$mounted, loading will be false");
       if (mounted) setState(() => _loading = false);
     }
 
@@ -99,7 +97,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     });
   }
 
-  // Only called when no lat/lon was passed (fallback).
   Future<void> _geocodePlaceFromMidpoint() async {
     try {
       final midpoint = await ApiService.getMidpoint(
@@ -125,8 +122,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           .timeout(const Duration(seconds: 10));
 
       if (mounted) {
-        setState(
-            () => _myLocation = LatLng(position.latitude, position.longitude));
+        setState(() => _myLocation = LatLng(position.latitude, position.longitude));
       }
 
       await ApiService.updateLocation(
@@ -172,7 +168,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -184,6 +180,20 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           ],
         ),
         backgroundColor: Colors.green,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sos, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      EmergencyScreen(userId: widget.userId),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -216,7 +226,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                                   color: Colors.red,
                                   size: 40,
                                 ),
-                                // Small label under the pin
                                 SizedBox(
                                   width: 60,
                                   child: Text(
@@ -259,6 +268,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                   ],
                 ),
 
+                // Legend
                 Positioned(
                   top: 16,
                   right: 16,
@@ -284,10 +294,32 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                   ),
                 ),
 
+                // SOS FAB
+                Positioned(
+                  bottom: 30,
+                  left: 16,
+                  child: FloatingActionButton(
+                    heroTag: "sos",
+                    backgroundColor: Colors.red,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              EmergencyScreen(userId: widget.userId),
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.sos, color: Colors.white),
+                  ),
+                ),
+
+                // Recenter FAB
                 Positioned(
                   bottom: 30,
                   right: 16,
                   child: FloatingActionButton(
+                    heroTag: "recenter",
                     backgroundColor: Colors.green,
                     onPressed: () {
                       if (_placeLocation != null) {
