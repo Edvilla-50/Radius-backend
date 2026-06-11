@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/ApiService.dart';
 import 'MapScreen.dart';
-import 'MessagesScreen.dart';
+import 'RequestsScreen.dart';
 import 'ProfileScreen.dart';
 import 'RankScreen.dart';
 import 'EmergencyScreen.dart';
@@ -178,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final pages = [
       MapScreen(userId: userId!),
-      MessagesScreen(userId: userId!),
+      RequestsScreen(userId: userId!),
       ProfileScreen(userId: userId!),
       RankScreen(userId: userId!),
       EmergencyScreen(userId: userId!),
@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map), label: 'Map'),
           NavigationDestination(
-              icon: Icon(Icons.message), label: 'Messages'),
+              icon: Icon(Icons.handshake), label: 'Requests'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
           NavigationDestination(
               icon: Icon(Icons.interests), label: 'Trait Stack'),

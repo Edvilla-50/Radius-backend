@@ -117,6 +117,14 @@ public class UserController {
         repo.save(user);
         return ResponseEntity.ok().build();
     }
+    @PostMapping("/{id}/ghost-mode")
+    public ResponseEntity<?> updateGhostMode(@PathVariable long id, @RequestBody Map<String, Boolean> body) {
+        User user = repo.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found: " + id));
+        user.setGhostMode(body.get("ghostMode"));
+        repo.save(user);
+        return ResponseEntity.ok().build();
+    }
     @PostMapping("/fcm-token")
     public ResponseEntity<?> updateFcmToken(@RequestBody Map<String, Object> body) {
         Long userId = Long.valueOf(body.get("userId").toString());

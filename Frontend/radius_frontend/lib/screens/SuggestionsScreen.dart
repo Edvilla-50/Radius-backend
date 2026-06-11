@@ -98,12 +98,21 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     // The RECIPIENT clears the location — not the chooser.
     // If the chooser clears it first, the recipient's next checkMutual
     // sees expired:true and never navigates.
+    //
+    // IMPORTANT: We delay the clear by a few seconds. Both clients poll
+    // every 3 seconds, so if the recipient clears immediately, the chooser's
+    // next poll can land between the clear and its own "mutual" read,
+    // causing the chooser to see expired:true and get bounced home instead
+    // of navigating to the meetup map. The delay gives the chooser's poll
+    // time to observe mutual==true first.
     if (!_iAmChooser) {
-      try {
-        await ApiService.clearMeetLocation(widget.matchId);
-      } catch (e) {
-        debugPrint("clearMeetLocation error: $e");
-      }
+      Future.delayed(const Duration(seconds: 5), () async {
+        try {
+          await ApiService.clearMeetLocation(widget.matchId);
+        } catch (e) {
+          debugPrint("clearMeetLocation error: $e");
+        }
+      });
     }
 
     if (!mounted) return;

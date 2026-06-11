@@ -22,6 +22,9 @@ public class GetInnocuous {
      * Higher score = more compatible
      */
     public List <User> compatibility(User me) {
+        if(me.isGhostMode()){
+            return new ArrayList<>();//if user is in ghost mode, return empty list
+        }
         double lon = me.getLon();//get user current longitude
         double lat = me.getLat();//get user current latitude
         double pref = me.getPerferredDistance();//pref distance of user
@@ -38,7 +41,7 @@ public class GetInnocuous {
         for (int i = 0; i<nearby.size();i++){
             double dist = 0.0;
             dist = hs.haversine(me.getLat(),me.getLon(),nearby.get(i).getLat(),nearby.get(i).getLon());
-            if(dist<=me.getPerferredDistance() && !nearby.get(i).getId().equals(me.getId())){
+            if(dist<=me.getPerferredDistance() && !nearby.get(i).getId().equals(me.getId()) && !nearby.get(i).isGhostMode()){
                 trueCan.add(nearby.get(i));
             }
         }

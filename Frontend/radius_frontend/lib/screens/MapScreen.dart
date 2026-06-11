@@ -22,6 +22,8 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _myLocation;
   List<dynamic> _matches = [];
   bool _scanning = false;
+  bool _ghostMode = false;
+  bool _ghostModeLoading = false;
   final MapController _mapController = MapController();
   StreamSubscription<Position>? _locationStream;
 
@@ -29,6 +31,7 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _getLocation();
+    _loadGhostMode();
   }
 
   @override
@@ -36,6 +39,42 @@ class _MapScreenState extends State<MapScreen> {
     _locationStream?.cancel();
     _locationStream = null;
     super.dispose();
+  }
+
+  Future<void> _loadGhostMode() async {
+    try {
+      final user = await ApiService.getUser(widget.userId);
+      if (!mounted) return;
+      setState(() {
+        _ghostMode = user["ghostMode"] == true;
+      });
+    } catch (e) {
+      debugPrint('MapScreen _loadGhostMode error: $e');
+    }
+  }
+
+  Future<void> _toggleGhostMode() async {
+    final newValue = !_ghostMode;
+    setState(() => _ghostModeLoading = true);
+    try {
+      await ApiService.updateGhostMode(widget.userId, newValue);
+      if (!mounted) return;
+      setState(() {
+        _ghostMode = newValue;
+        _ghostModeLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newValue ? 'Ghost mode on — you\'re hidden' : 'Ghost mode off'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _ghostModeLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update ghost mode')),
+      );
+    }
   }
 
   Future<void> _getLocation() async {
@@ -134,6 +173,31 @@ class _MapScreenState extends State<MapScreen> {
                 ],
               ),
             ],
+          ),
+
+          // Ghost Mode Button
+          Positioned(
+            top: 45,
+            right: 70,
+            child: FloatingActionButton.small(
+              heroTag: "ghost_mode_btn",
+              backgroundColor: _ghostMode
+                  ? Colors.deepPurple
+                  : Colors.white.withOpacity(0.9),
+              onPressed: _ghostModeLoading ? null : _toggleGhostMode,
+              child: _ghostModeLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      _ghostMode
+                          ? Icons.visibility_off
+                          : Icons.visibility_off_outlined,
+                      color: _ghostMode ? Colors.white : Colors.blue,
+                    ),
+            ),
           ),
 
           // Tutorial Button

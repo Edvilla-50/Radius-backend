@@ -141,6 +141,17 @@ class ApiService {
       throw Exception("Failed to update preferred distance");
     }
   }
+  static Future<void> updateGhostMode(int userId, bool ghostMode) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/user/$userId/ghost-mode"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"ghostMode": ghostMode}),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to update ghost mode");
+    }
+  }
   static Future<void> updateProfileHtml(int userId, String html) async {
     final res = await http.put(
       Uri.parse("$baseUrl/user/$userId/profile-html"),

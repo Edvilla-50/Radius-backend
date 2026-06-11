@@ -11,7 +11,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")  // ← added
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -20,6 +20,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true  // ← added
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -59,6 +60,7 @@ flutter {
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:34.1.0"))  // ← added
-    implementation("com.google.firebase:firebase-messaging")              // ← added
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")  // ← added
+    implementation(platform("com.google.firebase:firebase-bom:34.1.0"))
+    implementation("com.google.firebase:firebase-messaging")
 }
