@@ -117,4 +117,16 @@ public class UserController {
         repo.save(user);
         return ResponseEntity.ok().build();
     }
+    @PostMapping("/fcm-token")
+    public ResponseEntity<?> updateFcmToken(@RequestBody Map<String, Object> body) {
+        Long userId = Long.valueOf(body.get("userId").toString());
+        String fcmToken = body.get("fcmToken").toString();
+
+        User user = repo.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        user.setFcmToken(fcmToken);
+        repo.save(user);
+
+        return ResponseEntity.ok().build();
+    }
 }

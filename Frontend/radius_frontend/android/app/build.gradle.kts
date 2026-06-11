@@ -11,6 +11,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")  // ← added
 }
 
 android {
@@ -31,7 +32,7 @@ android {
         applicationId = "com.eddie.radiusapp"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 8
+        versionCode = 10
         versionName = "1.0.5"
     }
 
@@ -55,4 +56,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:34.1.0"))  // ← added
+    implementation("com.google.firebase:firebase-messaging")              // ← added
 }

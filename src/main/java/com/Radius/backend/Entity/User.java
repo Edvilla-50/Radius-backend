@@ -29,6 +29,7 @@ public class User {
     private double score;
     private String email;
     private String password;
+    private String fcmToken;
 
 
     @ManyToMany(fetch = FetchType.EAGER)
@@ -145,6 +146,14 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getFcmToken() {
+        return fcmToken;
+    }
+
+    public void setFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
     }
 }
 

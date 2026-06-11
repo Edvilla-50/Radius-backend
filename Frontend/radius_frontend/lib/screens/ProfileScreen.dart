@@ -106,10 +106,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Profile'),
+        backgroundColor: Colors.blue,
+        title: const Text('My Profile', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.preview),
+          TextButton(
             onPressed: () {
               Navigator.push(
                 context,
@@ -120,15 +121,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
             },
+            child: const Text('Preview', style: TextStyle(color: Colors.orange)),
           ),
           _saving
               ? const Padding(
                   padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(color: Colors.orange),
                 )
-              : IconButton(
-                  icon: const Icon(Icons.save),
+              : TextButton(
                   onPressed: _saveProfile,
+                  child: const Text('Save', style: TextStyle(color: Colors.orange)),
                 ),
         ],
       ),

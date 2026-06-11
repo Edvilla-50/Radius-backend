@@ -161,16 +161,18 @@ class _RankScreenState extends State<RankScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Trait Stack'),
+        backgroundColor: Colors.blue,
+        title: const Text('My Trait Stack', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           _saving
               ? const Padding(
                   padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(color: Colors.orange),
                 )
-              : IconButton(
-                  icon: const Icon(Icons.save),
+              : TextButton(
                   onPressed: _saveInterests,
+                  child: const Text('Save', style: TextStyle(color: Colors.orange)),
                 ),
         ],
       ),
@@ -187,7 +189,6 @@ class _RankScreenState extends State<RankScreen> {
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
@@ -210,7 +211,6 @@ class _RankScreenState extends State<RankScreen> {
               ],
             ),
           ),
-
           Expanded(
             child: DragAndDropLists(
               children: [

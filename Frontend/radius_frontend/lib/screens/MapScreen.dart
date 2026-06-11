@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import '../services/ApiService.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:async';
+
+import '../services/ApiService.dart';
 import '../services/LocationService.dart';
 import 'ProfilePreviewScreen.dart';
-import 'dart:async';
 import 'SuggestionsScreen.dart';
+import 'OnboardingScreen.dart'; 
 
 class MapScreen extends StatefulWidget {
   final int userId;
@@ -104,6 +106,7 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       body: Stack(
         children: [
+          // Map Layer
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -112,8 +115,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.radius.app',
               ),
               MarkerLayer(
@@ -133,6 +135,27 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
+
+          // Tutorial Button
+          Positioned(
+            top: 45,
+            right: 15,
+            child: FloatingActionButton.small(
+              heroTag: "tutorial_btn",
+              backgroundColor: Colors.white.withOpacity(0.9),
+              child: const Icon(Icons.help_outline, color: Colors.blue),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const OnboardingScreen(isTutorial: true),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Scan Button
           Positioned(
             bottom: 40,
             left: 0,
@@ -142,8 +165,7 @@ class _MapScreenState extends State<MapScreen> {
                 onPressed: _scanning ? null : _scan,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 50, vertical: 15),
+                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
@@ -161,58 +183,63 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
           ),
+
+          // FIX: Updated Matches Container layer using Material layout element
           if (_matches.isNotEmpty)
             Positioned(
-              top: 40,
+              top: 105,
               left: 10,
               right: 10,
-              child: Container(
+              child: SizedBox(
                 height: 150,
-                decoration: BoxDecoration(
+                child: Material(
+                  elevation: 2, // Gives the card overlay a slight floating shadow
                   color: Colors.white.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(10),
-                ),
-                child: ListView.builder(
-                  itemCount: _matches.length,
-                  itemBuilder: (context, index) {
-                    final match = _matches[index];
-                    final matchId = (match['id'] as num).toInt();
-                    return ListTile(
-                      leading: const Icon(Icons.person, color: Colors.blue),
-                      title: Text(match['name']),
-                      subtitle: Text(
-                        '${(match['score'] * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                  clipBehavior: Clip.antiAlias, // Ensures ink ripples stay inside the borders
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: _matches.length,
+                    itemBuilder: (context, index) {
+                      final match = _matches[index];
+                      final matchId = (match['id'] as num).toInt();
+                      return ListTile(
+                        leading: const Icon(Icons.person, color: Colors.blue),
+                        title: Text(match['name']),
+                        subtitle: Text(
+                          '${(match['score'] * 100).toStringAsFixed(0)}%',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
                         ),
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfilePreviewScreen(
-                              userId: matchId.toString(),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProfilePreviewScreen(
+                                userId: matchId.toString(),
+                              ),
+                            ),
+                          );
+                        },
+                        trailing: ElevatedButton(
+                          onPressed: () => _sendRequest(matchId),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.lightGreenAccent,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                        );
-                      },
-                      trailing: ElevatedButton(
-                        onPressed: () => _sendRequest(matchId),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.lightGreenAccent,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                          child: const Text(
+                            "Request",
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
-                        child: const Text(
-                          "Request",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

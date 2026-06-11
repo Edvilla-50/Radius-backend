@@ -30,6 +30,9 @@ public class MeetService {
     @Autowired
     private UserRepository userRepo;
 
+    @Autowired
+    private NotificationService notificationService;  // ← added
+
     @Value("${foursquare.apiKey}")
     private String foursquareApiKey;
 
@@ -43,7 +46,19 @@ public class MeetService {
         MeetRequest req = new MeetRequest(requesterId, receiverId, "PENDING");
         MeetRequest saved = repo.save(req);
         saved.setMatchId(saved.getId());
-        return repo.save(saved);
+        repo.save(saved);
+
+        // Send push notification to receiver ← added
+        User requester = userRepo.findById((long) requesterId).orElse(null);
+        User receiver = userRepo.findById((long) receiverId).orElse(null);
+        if (requester != null && receiver != null) {
+            notificationService.sendMeetupRequestNotification(
+                receiver.getFcmToken(),
+                requester.getName()
+            );
+        }
+
+        return saved;
     }
 
     public List<MeetRequest> getIncoming(int userId) {
