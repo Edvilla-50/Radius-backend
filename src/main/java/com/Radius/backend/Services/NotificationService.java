@@ -20,10 +20,10 @@ public class NotificationService {
         }
 
         try {
-            // Get OAuth2 token directly from service account file
+            // FIX: Changed scope to firebase.messaging
             GoogleCredentials credentials = GoogleCredentials
                 .fromStream(new FileInputStream("/etc/secrets/firebase-service-account.json"))
-                .createScoped(List.of("https://www.googleapis.com/auth/cloud-platform"));
+                .createScoped(List.of("https://www.googleapis.com/auth/firebase.messaging"));
 
             credentials.refreshIfExpired();
             String accessToken = credentials.getAccessToken().getTokenValue();
@@ -60,7 +60,12 @@ public class NotificationService {
             if (responseCode == 200) {
                 System.out.println("FCM send success!");
             } else {
-                System.err.println("FCM send failed: " + new String(conn.getErrorStream().readAllBytes()));
+                // Read from error stream securely
+                if (conn.getErrorStream() != null) {
+                    System.err.println("FCM send failed: " + new String(conn.getErrorStream().readAllBytes(), StandardCharsets.UTF_8));
+                } else {
+                    System.err.println("FCM send failed with code: " + responseCode);
+                }
             }
 
         } catch (Exception e) {
