@@ -18,27 +18,29 @@ public class NotificationService {
 
     private synchronized void initializeFirebase() throws Exception {
         String path = "/etc/secrets/firebase-service-account.json";
+        String appName = "RadiusCustomAuthApp";
         
-        // Always verify if the app exists under a clean distinct name
         try {
-            firebaseApp = FirebaseApp.getInstance("RadiusFinalApp");
+            firebaseApp = FirebaseApp.getInstance(appName);
         } catch (IllegalStateException e) {
-            System.out.println(">>> Generating explicit OAuth2 Credential bindings... <<<");
+            System.out.println(">>> Requesting fresh OAuth2 token explicitly from Google IAM... <<<");
             
             FileInputStream serviceAccount = new FileInputStream(path);
             
-            // Explicitly scope the credentials to Firebase Messaging permissions
+            // Explicitly target the scoped Firebase Messaging API endpoint
             GoogleCredentials credentials = GoogleCredentials.fromStream(serviceAccount)
-                .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"));
+                .createScoped(Collections.singletonList("https://www.googleapis.com/auth/cloud-platform"));
             
-            // Force refresh the token immediately to ensure it authenticates before any call
-            credentials.refreshIfExpired();
+            // Force an immediate server handshake to fetch the token right now
+            credentials.refresh();
+            System.out.println(">>> Token successfully minted! Expiry: " + credentials.getAccessToken().getExpirationTime() + " <<<");
 
             FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(credentials)
+                .setProjectId("radius-6ad92") // Explicitly hardcode target project
                 .build();
 
-            firebaseApp = FirebaseApp.initializeApp(options, "RadiusFinalApp");
+            firebaseApp = FirebaseApp.initializeApp(options, appName);
         }
     }
 
@@ -49,7 +51,6 @@ public class NotificationService {
         }
 
         try {
-            // Force fresh secure auth initialization
             initializeFirebase();
 
             Message message = Message.builder()
@@ -60,7 +61,6 @@ public class NotificationService {
                     .build())
                 .build();
 
-            // Send via our bound, pre-refreshed application profile instance
             String response = FirebaseMessaging.getInstance(firebaseApp).send(message);
             System.out.println("FCM send success! Message ID: " + response);
 
