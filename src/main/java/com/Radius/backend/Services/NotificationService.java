@@ -23,7 +23,7 @@ public class NotificationService {
             // Get OAuth2 token directly from service account file
             GoogleCredentials credentials = GoogleCredentials
                 .fromStream(new FileInputStream("/etc/secrets/firebase-service-account.json"))
-                .createScoped(List.of("https://www.googleapis.com/auth/firebase.messaging"));
+                .createScoped(List.of("https://www.googleapis.com/auth/cloud-platform"));
 
             credentials.refreshIfExpired();
             String accessToken = credentials.getAccessToken().getTokenValue();
