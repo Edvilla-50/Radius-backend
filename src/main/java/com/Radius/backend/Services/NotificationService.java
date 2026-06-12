@@ -9,7 +9,12 @@ import org.springframework.stereotype.Service;
 public class NotificationService {
 
     public void sendMeetupRequestNotification(String fcmToken, String requesterName) {
-        if (fcmToken == null || fcmToken.isEmpty()) return;
+        if (fcmToken == null || fcmToken.isEmpty()) {
+            System.err.println("FCM token is null or empty — skipping notification");
+            return;
+        }
+
+        System.out.println("Attempting FCM send to token: " + fcmToken.substring(0, 20) + "...");
 
         try {
             Message message = Message.builder()
@@ -20,9 +25,11 @@ public class NotificationService {
                     .build())
                 .build();
 
-            FirebaseMessaging.getInstance().send(message);
+            String response = FirebaseMessaging.getInstance().send(message);
+            System.out.println("FCM send success: " + response);
         } catch (Exception e) {
             System.err.println("Failed to send FCM notification: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
