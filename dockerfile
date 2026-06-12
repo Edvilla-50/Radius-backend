@@ -6,7 +6,7 @@ WORKDIR /app
 COPY pom.xml .
 
 # 2. CACHE BUSTER: Change this version number whenever your code won't refresh!
-ARG CACHE_BUST=1
+ARG CACHE_BUST=2
 RUN echo "Force recompile version: ${CACHE_BUST}"
 
 # 3. Copy source and force a total re-update package

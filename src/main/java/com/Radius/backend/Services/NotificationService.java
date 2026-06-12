@@ -24,11 +24,9 @@ public class NotificationService {
             String appName = "RadiusScopedApp";
             FirebaseApp scopedApp;
 
-            // Check if our specific scoped app is already initialized
             try {
                 scopedApp = FirebaseApp.getInstance(appName);
             } catch (IllegalStateException e) {
-                // If it doesn't exist, initialize it with a hard association to the key credentials
                 System.out.println(">>> Initializing isolated Firebase instance for notification routing... <<<");
                 FileInputStream serviceAccount = new FileInputStream(path);
                 
@@ -39,7 +37,6 @@ public class NotificationService {
                 scopedApp = FirebaseApp.initializeApp(options, appName);
             }
 
-            // Build the message payload
             Message message = Message.builder()
                 .setToken(fcmToken)
                 .setNotification(Notification.builder()
@@ -48,7 +45,7 @@ public class NotificationService {
                     .build())
                 .build();
 
-            // CRITICAL CHANGE: Grab the messaging instance explicitly tied to our authenticated scopedApp
+            // CRITICAL FIX: You must pass scopedApp here so the SDK signs the request token!
             String response = FirebaseMessaging.getInstance(scopedApp).send(message);
             System.out.println("FCM send success! Message ID: " + response);
 
