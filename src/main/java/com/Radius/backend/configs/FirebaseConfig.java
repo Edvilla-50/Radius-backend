@@ -26,7 +26,10 @@ public class FirebaseConfig {
                     serviceAccount = serviceAccount.substring(1, serviceAccount.length() - 1);
                 }
                 serviceAccount = serviceAccount.replace("\\n", "\n").replace("\\\"", "\"");
-
+                // Debug — remove after fixing
+System.out.println("Service account length: " + serviceAccount.length());
+System.out.println("Contains literal newline in key: " + serviceAccount.contains("-----BEGIN PRIVATE KEY-----\n"));
+System.out.println("Contains escaped newline in key: " + serviceAccount.contains("-----BEGIN PRIVATE KEY-----\\n"));
                 GoogleCredentials credentials = GoogleCredentials
                     .fromStream(new ByteArrayInputStream(
                         serviceAccount.getBytes(StandardCharsets.UTF_8)
