@@ -121,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               );
             },
-            child: const Text('Preview', style: TextStyle(color: Colors.orange)),
+            child: const Text('Preview', style: TextStyle(color: Colors.white)),
           ),
           _saving
               ? const Padding(
@@ -130,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 )
               : TextButton(
                   onPressed: _saveProfile,
-                  child: const Text('Save', style: TextStyle(color: Colors.orange)),
+                  child: const Text('Save', style: TextStyle(color: Colors.white)),
                 ),
         ],
       ),

@@ -172,7 +172,7 @@ class _RankScreenState extends State<RankScreen> {
                 )
               : TextButton(
                   onPressed: _saveInterests,
-                  child: const Text('Save', style: TextStyle(color: Colors.orange)),
+                  child: const Text('Save', style: TextStyle(color: Colors.white)),
                 ),
         ],
       ),

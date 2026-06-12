@@ -96,6 +96,21 @@ class OnboardingScreen extends StatelessWidget {
               ),
             ),
             PageViewModel(
+              title: "Need a Break? Go Ghost",
+              body: "Turn on Ghost Mode anytime to disappear from scans. While it's on, you won't show up to others — and you won't be able to see them either. Toggle it off whenever you're ready to be discovered again.",
+              image: const Icon(
+                Icons.visibility_off,
+                size: 120,
+                color: Colors.white,
+              ),
+              decoration: const PageDecoration(
+                titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
+                pageColor: Colors.blueAccent,
+                imagePadding: EdgeInsets.all(24),
+              ),
+            ),
+            PageViewModel(
               title: "Meet in Real Life",
               body: "Radius is about real connections. Get off the app and go meet someone nearby today.",
               image: Image.asset('assets/images/meetirl.png'),
