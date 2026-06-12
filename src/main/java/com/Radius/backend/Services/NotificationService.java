@@ -1,48 +1,19 @@
 package com.Radius.backend.Services;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
 import org.springframework.stereotype.Service;
 
 import java.io.FileInputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Collections;
 
 @Service
 public class NotificationService {
 
-    private FirebaseApp firebaseApp;
-
-    private synchronized void initializeFirebase() throws Exception {
-        String path = "/etc/secrets/firebase-service-account.json";
-        String appName = "RadiusCustomAuthApp";
-        
-        try {
-            firebaseApp = FirebaseApp.getInstance(appName);
-        } catch (IllegalStateException e) {
-            System.out.println(">>> Requesting fresh OAuth2 token explicitly from Google IAM... <<<");
-            
-            FileInputStream serviceAccount = new FileInputStream(path);
-            
-            // Explicitly target the scoped Firebase Messaging API endpoint
-            GoogleCredentials credentials = GoogleCredentials.fromStream(serviceAccount)
-                .createScoped(Collections.singletonList("https://www.googleapis.com/auth/cloud-platform"));
-            
-            // Force an immediate server handshake to fetch the token right now
-            credentials.refresh();
-            System.out.println(">>> Token successfully minted! Expiry: " + credentials.getAccessToken().getExpirationTime() + " <<<");
-
-            FirebaseOptions options = FirebaseOptions.builder()
-                .setCredentials(credentials)
-                .setProjectId("radius-6ad92") // Explicitly hardcode target project
-                .build();
-
-            firebaseApp = FirebaseApp.initializeApp(options, appName);
-        }
-    }
+    private final HttpClient httpClient = HttpClient.newHttpClient();
 
     public void sendMeetupRequestNotification(String fcmToken, String requesterName) {
         if (fcmToken == null || fcmToken.isEmpty()) {
@@ -51,21 +22,50 @@ public class NotificationService {
         }
 
         try {
-            initializeFirebase();
+            System.out.println(">>> Requesting fresh OAuth2 token explicitly from Google IAM... <<<");
+            String path = "/etc/secrets/firebase-service-account.json";
+            FileInputStream serviceAccount = new FileInputStream(path);
 
-            Message message = Message.builder()
-                .setToken(fcmToken)
-                .setNotification(Notification.builder()
-                    .setTitle("New Meetup Request 👋")
-                    .setBody(requesterName + " wants to meet up with you!")
-                    .build())
+            // Fetch the specific messaging scope token
+            GoogleCredentials credentials = GoogleCredentials.fromStream(serviceAccount)
+                .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"));
+            
+            credentials.refresh();
+            String accessToken = credentials.getAccessToken().getTokenValue();
+            System.out.println(">>> Token successfully minted! Sending raw HTTP payload... <<<");
+
+            // Build the standard Firebase v1 JSON Payload
+            String jsonPayload = """
+                {
+                  "message": {
+                    "token": "%s",
+                    "notification": {
+                      "title": "New Meetup Request 👋",
+                      "body": "%s wants to meet up with you!"
+                    }
+                  }
+                }
+                """.formatted(fcmToken, requesterName);
+
+            // Construct raw HTTP Request using the working access token
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://fcm.googleapis.com/v1/projects/radius-6ad92/messages:send"))
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                 .build();
 
-            String response = FirebaseMessaging.getInstance(firebaseApp).send(message);
-            System.out.println("FCM send success! Message ID: " + response);
+            // Fire and check response code
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                System.out.println("FCM send success via Raw HTTP! Response: " + response.body());
+            } else {
+                System.err.println("FCM send failed with status " + response.statusCode() + ": " + response.body());
+            }
 
         } catch (Exception e) {
-            System.err.println("Failed to send FCM notification via SDK: " + e.getMessage());
+            System.err.println("Failed to send FCM notification via manual HTTP fallback: " + e.getMessage());
             e.printStackTrace();
         }
     }
