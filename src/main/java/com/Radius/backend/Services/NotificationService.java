@@ -1,6 +1,7 @@
 package com.Radius.backend.Services;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -8,7 +9,10 @@ import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 @Service
 public class NotificationService {
@@ -20,22 +24,38 @@ public class NotificationService {
         }
 
         try {
-            // FORCE CHECK: If Firebase didn't initialize at app startup, initialize it right here
-            if (FirebaseApp.getApps().isEmpty()) {
-                System.out.println(">>> Firebase wasn't initialized! Forcing local initialization... <<<");
+            String path = "/etc/secrets/firebase-service-account.json";
+            File file = new File(path);
+
+            System.out.println(">>> DEBUGGING SECRET FILE <<<");
+            System.out.println("File exists: " + file.exists());
+            if (file.exists()) {
+                System.out.println("File size in bytes: " + file.length());
+                // Read content to see if it's actually JSON or broken text
+                String content = Files.readString(Paths.get(path)).trim();
+                System.out.println("Does file start with '{': " + content.startsWith("{"));
                 
-                FileInputStream serviceAccount = 
-                    new FileInputStream("/etc/secrets/firebase-service-account.json");
-
-                FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .build();
-
-                FirebaseApp.initializeApp(options);
-                System.out.println(">>> Forced Local Firebase Initialization Complete <<<");
+                // Inspect inside the parsed credentials
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    ServiceAccountCredentials sac = (ServiceAccountCredentials) GoogleCredentials.fromStream(fis);
+                    System.out.println(">>> KEY FILE PROJECT ID: " + sac.getProjectId());
+                    System.out.println(">>> KEY FILE CLIENT EMAIL: " + sac.getClientEmail());
+                } catch (Exception credentialError) {
+                    System.err.println(">>> ERROR PARSING CREDENTIALS FROM FILE: " + credentialError.getMessage());
+                }
             }
 
-            // Build the message payload
+            // Forced initialization check using the file
+            if (FirebaseApp.getApps().isEmpty() && file.exists()) {
+                try (FileInputStream serviceAccount = new FileInputStream(path)) {
+                    FirebaseOptions options = FirebaseOptions.builder()
+                        .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                        .build();
+                    FirebaseApp.initializeApp(options);
+                    System.out.println(">>> Firebase SDK successfully initialized inline! <<<");
+                }
+            }
+
             Message message = Message.builder()
                 .setToken(fcmToken)
                 .setNotification(Notification.builder()
@@ -44,7 +64,6 @@ public class NotificationService {
                     .build())
                 .build();
 
-            // Send the notification
             String response = FirebaseMessaging.getInstance().send(message);
             System.out.println("FCM send success! Message ID: " + response);
 
