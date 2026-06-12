@@ -9,9 +9,38 @@ import com.google.firebase.messaging.Notification;
 import org.springframework.stereotype.Service;
 
 import java.io.FileInputStream;
+import java.util.Collections;
 
 @Service
 public class NotificationService {
+
+    private FirebaseApp firebaseApp;
+
+    private synchronized void initializeFirebase() throws Exception {
+        String path = "/etc/secrets/firebase-service-account.json";
+        
+        // Always verify if the app exists under a clean distinct name
+        try {
+            firebaseApp = FirebaseApp.getInstance("RadiusFinalApp");
+        } catch (IllegalStateException e) {
+            System.out.println(">>> Generating explicit OAuth2 Credential bindings... <<<");
+            
+            FileInputStream serviceAccount = new FileInputStream(path);
+            
+            // Explicitly scope the credentials to Firebase Messaging permissions
+            GoogleCredentials credentials = GoogleCredentials.fromStream(serviceAccount)
+                .createScoped(Collections.singletonList("https://www.googleapis.com/auth/firebase.messaging"));
+            
+            // Force refresh the token immediately to ensure it authenticates before any call
+            credentials.refreshIfExpired();
+
+            FirebaseOptions options = FirebaseOptions.builder()
+                .setCredentials(credentials)
+                .build();
+
+            firebaseApp = FirebaseApp.initializeApp(options, "RadiusFinalApp");
+        }
+    }
 
     public void sendMeetupRequestNotification(String fcmToken, String requesterName) {
         if (fcmToken == null || fcmToken.isEmpty()) {
@@ -20,22 +49,8 @@ public class NotificationService {
         }
 
         try {
-            String path = "/etc/secrets/firebase-service-account.json";
-            String appName = "RadiusScopedApp";
-            FirebaseApp scopedApp;
-
-            try {
-                scopedApp = FirebaseApp.getInstance(appName);
-            } catch (IllegalStateException e) {
-                System.out.println(">>> Initializing isolated Firebase instance for notification routing... <<<");
-                FileInputStream serviceAccount = new FileInputStream(path);
-                
-                FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .build();
-
-                scopedApp = FirebaseApp.initializeApp(options, appName);
-            }
+            // Force fresh secure auth initialization
+            initializeFirebase();
 
             Message message = Message.builder()
                 .setToken(fcmToken)
@@ -45,8 +60,8 @@ public class NotificationService {
                     .build())
                 .build();
 
-            // CRITICAL FIX: You must pass scopedApp here so the SDK signs the request token!
-            String response = FirebaseMessaging.getInstance(scopedApp).send(message);
+            // Send via our bound, pre-refreshed application profile instance
+            String response = FirebaseMessaging.getInstance(firebaseApp).send(message);
             System.out.println("FCM send success! Message ID: " + response);
 
         } catch (Exception e) {
