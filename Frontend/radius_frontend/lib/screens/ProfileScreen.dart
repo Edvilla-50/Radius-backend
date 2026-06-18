@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/ApiService.dart';
 import 'ProfilePreviewScreen.dart';
+import 'LoginScreen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final int userId;
@@ -72,6 +74,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _saving = false);
   }
 
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Log Out', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   Widget _templateCard(String id, String label, Color color) {
     final isSelected = _selectedTemplate == id;
     return GestureDetector(
@@ -132,6 +166,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: _saveProfile,
                   child: const Text('Save', style: TextStyle(color: Colors.white)),
                 ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Log Out',
+            onPressed: _logout,
+          ),
         ],
       ),
       body: SingleChildScrollView(

@@ -27,7 +27,7 @@ class _RankScreenState extends State<RankScreen> {
       final user = await ApiService.getUser(widget.userId);
       setState(() {
         _interests = List<Map<String, dynamic>>.from(user['interests']);
-        _preferredDistance = (user['preferredDistance'] as num?)?.toDouble() ?? 1.0;
+        _preferredDistance = (user['perferredDistance'] as num?)?.toDouble() ?? 1.0;
         _loading = false;
       });
     } catch (e) {
@@ -52,69 +52,6 @@ class _RankScreenState extends State<RankScreen> {
     setState(() => _saving = false);
   }
 
-  Future<void> _showInterestDetailsDialog(Map<String, dynamic> interest) async {
-    String? difficulty;
-    bool moneyNeeded = false;
-    bool disAccessible = false;
-    String meetUpTime = '';
-
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Customize ${interest['name']}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Difficulty'),
-                items: ['Easy', 'Medium', 'Hard']
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                    .toList(),
-                onChanged: (val) => setDialogState(() => difficulty = val),
-              ),
-              SwitchListTile(
-                title: const Text('Costs Money'),
-                value: moneyNeeded,
-                onChanged: (val) => setDialogState(() => moneyNeeded = val),
-              ),
-              SwitchListTile(
-                title: const Text('Accessible to people with disabilities'),
-                value: disAccessible,
-                onChanged: (val) => setDialogState(() => disAccessible = val),
-              ),
-              TextField(
-                decoration: const InputDecoration(labelText: 'Meet up Time (e.g evenings)'),
-                onChanged: (val) => meetUpTime = val,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _interests.add({
-                    ...interest,
-                    'difficulty': difficulty,
-                    'moneyNeeded': moneyNeeded,
-                    'disAccessible': disAccessible,
-                    'meetUpTime': meetUpTime,
-                  });
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _showAddInterestDialog() async {
     final allInterests = await ApiService.getAllInterests();
     final currentIds = _interests.map((i) => i['id']).toSet();
@@ -129,27 +66,62 @@ class _RankScreenState extends State<RankScreen> {
       return;
     }
 
+    String query = '';
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Interest'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: available.length,
-            itemBuilder: (context, index) {
-              final interest = available[index];
-              return ListTile(
-                title: Text(interest['name']),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showInterestDetailsDialog(interest);
-                },
-              );
-            },
-          ),
-        ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final filtered = available
+              .where((i) => i['name']
+                  .toString()
+                  .toLowerCase()
+                  .contains(query.toLowerCase()))
+              .toList();
+
+          return AlertDialog(
+            title: const Text('Add Interest'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Search interests...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (val) => setDialogState(() => query = val),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 300,
+                    child: filtered.isEmpty
+                        ? const Center(child: Text('No matches found'))
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              final interest = filtered[index];
+                              return ListTile(
+                                title: Text(interest['name']),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  setState(() {
+                                    _interests.add(interest);
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -73,11 +73,17 @@ public class UserController {
         user.setHtmlProfile(body.get("html"));
         return repo.save(user);
     }
-    @GetMapping(value = "/{id}/profile-html", produces = "application/json")
-    public Map<String, String> getProfileHtml(@PathVariable long id) {
+    @GetMapping("/{id}/profile-html")
+    public ResponseEntity<?> getProfileHtml(@PathVariable long id) {
         User user = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("User not found: " + id));
-        return Map.of("html", user.getHtmlProfile());
+        
+        String html = user.getHtmlProfile();
+        if (html == null || html.isBlank()) {
+            html = "<html><body style='font-family:Arial;padding:20px;'><h2>No profile yet</h2><p>This user hasn't set up their profile page.</p></body></html>";
+        }
+        
+        return ResponseEntity.ok(Map.of("html", html));
     }
 
     @PostMapping("/register")

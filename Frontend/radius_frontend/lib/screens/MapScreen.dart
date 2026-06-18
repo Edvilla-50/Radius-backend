@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 
 import '../services/ApiService.dart';
@@ -9,6 +10,9 @@ import '../services/LocationService.dart';
 import 'ProfilePreviewScreen.dart';
 import 'SuggestionsScreen.dart';
 import 'OnboardingScreen.dart'; 
+
+const String _spotifyPlaylistUrl = 'https://open.spotify.com/playlist/4mmKm7hFzxAn2XYtx4JqRS?si=6A0E9NdDSjaBp7pExHlXIw&pi=YsDnlnQNQAePF';
+const String _appleMusicPlaylistUrl = 'https://music.apple.com/us/playlist/the-radius-soundtrack/pl.u-jV899DNFDe543bD';
 
 class MapScreen extends StatefulWidget {
   final int userId;
@@ -68,6 +72,9 @@ class _MapScreenState extends State<MapScreen> {
           content: Text(newValue ? 'Ghost mode on — you\'re hidden' : 'Ghost mode off'),
         ),
       );
+      if (newValue) {
+        _scan();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _ghostModeLoading = false);
@@ -138,6 +145,38 @@ class _MapScreenState extends State<MapScreen> {
       if (!mounted) return;
       setState(() => _scanning = false);
     }
+  }
+
+  void _showPlaylistEasterEgg() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('🎧 You found it!'),
+        content: const Text(
+          'Here\'s the official Radius playlist — good music for good vibes while you scan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final uri = Uri.parse(_spotifyPlaylistUrl);
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+            child: const Text('Spotify'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final uri = Uri.parse(_appleMusicPlaylistUrl);
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+            child: const Text('Apple Music'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -225,25 +264,28 @@ class _MapScreenState extends State<MapScreen> {
             left: 0,
             right: 0,
             child: Center(
-              child: ElevatedButton(
-                onPressed: _scanning ? null : _scan,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+              child: GestureDetector(
+                onLongPress: _showPlaylistEasterEgg,
+                child: ElevatedButton(
+                  onPressed: _scanning ? null : _scan,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
                   ),
-                ),
-                child: _scanning
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'SCAN',
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                  child: _scanning
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'SCAN',
+                          style: TextStyle(
+                            fontSize: 20,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                ),
               ),
             ),
           ),

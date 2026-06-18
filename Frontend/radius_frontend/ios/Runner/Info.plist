@@ -28,6 +28,11 @@
 	<array>
 		<string>Intent</string>
 	</array>
+		<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+		<string>music</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
