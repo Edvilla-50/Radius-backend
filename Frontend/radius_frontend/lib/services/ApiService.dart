@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:radius_frontend/enums/EmergencyType.dart';
 
@@ -66,7 +67,6 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  // FIXED PATHWAY: Aligned to handle backend cancellation and break infinite routing loops
   static Future<void> clearMeetLocation(int matchId) async {
     final url = Uri.parse("$baseUrl/match/meet/clearLocation");
 
@@ -82,6 +82,7 @@ class ApiService {
   }
 
   static Future<void> sendMeetRequest(int userId, int matchId) async {
+    debugPrint("SENDING MEET REQUEST userId=$userId matchId=$matchId");
     final url = Uri.parse("$baseUrl/match/meet/request");
 
     final res = await http.post(
@@ -273,7 +274,7 @@ class ApiService {
   }
 
   // ============================================================
-  // SAFETY SYSTEM (NEW)
+  // SAFETY SYSTEM
   // ============================================================
   static Future<Map<String, dynamic>> getSafetyScore(String locationId) async {
     final url = Uri.parse("$baseUrl/safety/score/$locationId");
@@ -327,7 +328,7 @@ class ApiService {
       return jsonDecode(res.body);
     }
 
-    return null; // no location selected yet
+    return null;
   }
 
   static Future<void> selectMeetLocation(
@@ -391,10 +392,9 @@ class ApiService {
         return jsonDecode(res.body);
       }
     } catch (e) {
-      print("Network error checking match mutual status: $e");
+      debugPrint("Network error checking match mutual status: $e");
     }
 
-    // Secure status fallback state profile if communication breaks
     return {"mutual": false, "expired": true, "sosTriggered": true};
   }
 }

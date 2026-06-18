@@ -111,6 +111,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     } catch (e) {
       debugPrint("Error saving SOS updates: $e");
     } finally {
+      // CRITICAL FIX: Drops active match references completely to break home check loops
+      AppState().clearActiveMatch(); 
       AppState().resetSos();
       AppState().isHandlingSosCleanup = false;
       AppState().justTriggeredSos = false;
@@ -154,12 +156,19 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   void _handleSessionExpired() {
-    if (_navigated) return;
-    setState(() => _navigated = true);
-    _cleanUpTimers();
+  if (_navigated) return;
+
+  setState(() => _navigated = true);
+  _cleanUpTimers();
+
+  try {
+    ApiService.clearMeetLocation(widget.matchId);
+  } catch (_) {}
 
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil("/home", (route) => false);
+
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil("/home", (route) => false);
   }
 
   Future<void> _loadSuggestions() async {
@@ -201,6 +210,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
     try {
       final loc = await ApiService.getLocation(widget.matchId);
+      debugPrint("LOCATION RESPONSE = $loc");
       if (_navigated) return;
 
       if (loc == null || loc["expired"] == true) {
@@ -260,6 +270,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
     try {
       final res = await ApiService.checkMutual(widget.matchId);
+      debugPrint("MUTUAL RESPONSE = $res");
       if (_navigated) return;
 
       if (res["expired"] == true || res["sosTriggered"] == true) {

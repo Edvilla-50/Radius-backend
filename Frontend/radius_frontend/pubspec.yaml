@@ -24,14 +24,14 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   firebase_core: ^4.10.0
   firebase_messaging: ^16.3.0
-  flutter_local_notifications: ^22.0.0
+  flutter_local_notifications: ^19.0.0
   url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  mockito: ^5.7.0
+  mockito: 5.6.4
 
 flutter:
   uses-material-design: true

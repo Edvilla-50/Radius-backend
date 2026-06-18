@@ -27,7 +27,7 @@ class _RankScreenState extends State<RankScreen> {
       final user = await ApiService.getUser(widget.userId);
       setState(() {
         _interests = List<Map<String, dynamic>>.from(user['interests']);
-        _preferredDistance = (user['perferredDistance'] as num?)?.toDouble() ?? 1.0;
+        _preferredDistance = ((user['perferredDistance'] as num?)?.toDouble() ?? 1.0).clamp(1.0, 5.0);
         _loading = false;
       });
     } catch (e) {

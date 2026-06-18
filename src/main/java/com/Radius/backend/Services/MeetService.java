@@ -96,6 +96,14 @@ public class MeetService {
     // ADDED: Fixes the compilation error in MatchController and tracks 'CANCELLED' status
     public String getMatchStatus(int matchId) {
         List<MeetRequest> requests = repo.findByMatchId(matchId);
+
+        System.out.println(
+            "MATCH " + matchId +
+            " STATUS = " +
+            requests.stream()
+                .map(MeetRequest::getStatus)
+                .toList()
+        );
         if (requests.isEmpty()) return "NOT_FOUND";
         return requests.get(0).getStatus();
     }

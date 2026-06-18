@@ -7,13 +7,7 @@ class AppState {
 
   final ValueNotifier<bool> sosTriggered = ValueNotifier(false);
   bool justTriggeredSos = false;
-
-  // Persistent lock to stop HomeScreen polling during background network operations
   bool isHandlingSosCleanup = false;
-
-  // Tracks the matchId of the meetup currently in progress (set when the user
-  // enters SuggestionsScreen/MeetupMapScreen), so other parts of the app can
-  // reference the active match without needing it passed through context.
   int? activeMatchId;
 
   void triggerSos() {
@@ -26,7 +20,11 @@ class AppState {
     sosTriggered.value = false;
   }
 
-  void setActiveMatch(int? matchId) {
+  void setActiveMatch(int matchId) {
     activeMatchId = matchId;
+  }
+
+  void clearActiveMatch() {
+    activeMatchId = null;
   }
 }

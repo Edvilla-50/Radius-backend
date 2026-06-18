@@ -19,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _stopListener = false;
   bool _isDialogShowing = false;
+  bool _listenerRunning = false;
   int _listenerGeneration = 0;
 
   int index = 0;
@@ -47,6 +48,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _startIncomingListener() async {
+    if (_listenerRunning) {
+      debugPrint("HOME: listener already running, skipping duplicate start");
+      return;
+    }
+    _listenerRunning = true;
     _stopListener = false;
     final myGeneration = ++_listenerGeneration;
 
@@ -55,7 +61,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
-      // Bypass polling entirely while backend SOS state is cleaning up
       if (AppState().isHandlingSosCleanup || AppState().justTriggeredSos) {
         debugPrint("HOME: SOS cleanup active. Skipping active match verification.");
         continue;
@@ -82,33 +87,43 @@ class _HomeScreenState extends State<HomeScreen> {
         final mutual = await ApiService.checkMutualForUser(userId!);
         if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
-        // Double check lock to confirm we are safe to route to suggestions
-        if (mutual != null && !_isDialogShowing && !AppState().isHandlingSosCleanup) {
-          _stopListener = true;
+        if (mutual != null &&
+    !_isDialogShowing &&
+    !AppState().isHandlingSosCleanup) {
 
-          final matchId = (mutual["matchId"] as num).toInt();
-          final otherUserId = (mutual["otherUserId"] as num).toInt();
+  final matchId = (mutual["matchId"] as num).toInt();
 
-          // Keep state sync updated before moving away
-          AppState().setActiveMatch(matchId);
+  // Prevent reopening the same match forever
+    if (AppState().activeMatchId == matchId) {
+      continue;
+    }
 
-          if (!mounted) break;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SuggestionsScreen(
-                // FIXED: Removed the obsolete userId named parameter
-                otherUserId: otherUserId,
-                matchId: matchId,
-              ),
-            ),
-          );
-          break;
-        }
+    _stopListener = true;
+
+    final otherUserId = (mutual["otherUserId"] as num).toInt();
+
+    AppState().setActiveMatch(matchId);
+
+    if (!mounted) break;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => SuggestionsScreen(
+          otherUserId: otherUserId,
+          matchId: matchId,
+        ),
+      ),
+      (route) => false,
+    );
+
+    break;
+  }
       } catch (e) {
         debugPrint("LISTENER ERROR: $e");
       }
     }
+
+    _listenerRunning = false;
   }
 
   Future<void> _showIncomingPopup(dynamic req) async {
@@ -147,18 +162,16 @@ class _HomeScreenState extends State<HomeScreen> {
               await Future.delayed(const Duration(milliseconds: 200));
               if (!mounted) return;
 
-              // Keep state sync updated before moving away
               AppState().setActiveMatch(matchId);
 
-              Navigator.pushReplacement(
-                context,
+              Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
                   builder: (_) => SuggestionsScreen(
-                    // FIXED: Removed the obsolete userId named parameter
                     otherUserId: otherUserId,
                     matchId: matchId,
                   ),
                 ),
+                (route) => false,
               );
             },
             child: const Text("Accept"),
