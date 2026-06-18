@@ -66,8 +66,19 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  // CRITICAL FIX: Point this to the correct Spring Boot MatchController endpoint
   static Future<void> clearMeetLocation(int matchId) async {
-    await http.delete(Uri.parse("$baseUrl/meet/location/$matchId"));
+    final url = Uri.parse("$baseUrl/match/meet/clearLocation");
+
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"matchId": matchId}),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to clear meet location and cancel session");
+    }
   }
 
 

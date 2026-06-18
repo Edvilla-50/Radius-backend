@@ -86,6 +86,20 @@ public class MeetService {
         return req;
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public void clearMeetLocation(int matchId) {
+        // Change match rows to CANCELLED and push to database disk immediately
+        repo.terminateMatchSession(matchId);
+        repo.flush();
+    }
+
+    // ADDED: Fixes the compilation error in MatchController and tracks 'CANCELLED' status
+    public String getMatchStatus(int matchId) {
+        List<MeetRequest> requests = repo.findByMatchId(matchId);
+        if (requests.isEmpty()) return "NOT_FOUND";
+        return requests.get(0).getStatus();
+    }
+
     public boolean isMutual(int a, int b) {
         Optional<MeetRequest> reqAB = repo.findByRequesterIdAndReceiverId(a, b);
         Optional<MeetRequest> reqBA = repo.findByRequesterIdAndReceiverId(b, a);
@@ -222,4 +236,3 @@ public class MeetService {
         };
     }
 }
-

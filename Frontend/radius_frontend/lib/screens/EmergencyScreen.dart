@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:radius_frontend/enums/EmergencyType.dart';
 import 'package:radius_frontend/services/ApiService.dart';
 import 'package:radius_frontend/services/LocationService.dart';
+import 'package:radius_frontend/state/AppState.dart';
 
 class EmergencyScreen extends StatefulWidget {
   final int userId;
-
   const EmergencyScreen({super.key, required this.userId});
 
   @override
@@ -19,13 +19,9 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
   Future<void> sendAlert() async {
     if (selectedType == null) return;
-
     setState(() => isSending = true);
-
     try {
       final position = await LocationService.getCurrentLocation();
-      double lat = position.latitude;
-      double lon = position.longitude;
 
       await ApiService.sendEmergency(
         userId: widget.userId,
@@ -35,16 +31,26 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         note: note,
       );
 
+      // 1. Notify background screens to cancel their active timers/streams
+      AppState().triggerSos();
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Emergency alert sent")),
       );
+
+      // 2. Clear the entire navigation history stack and take the local user Home
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        "/home",
+        (route) => false,
+      );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Failed to send alert")),
       );
     }
-
-    setState(() => isSending = false);
+    if (mounted) setState(() => isSending = false);
   }
 
   @override
@@ -59,32 +65,26 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
               "Select your situation:",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 20),
-
-            RadioListTile(
+            RadioListTile<EmergencyType>(
               title: const Text("I feel unsafe"),
               value: EmergencyType.unsafe,
               groupValue: selectedType,
               onChanged: (value) => setState(() => selectedType = value),
             ),
-
-            RadioListTile(
+            RadioListTile<EmergencyType>(
               title: const Text("I am hurt"),
               value: EmergencyType.injured,
               groupValue: selectedType,
               onChanged: (value) => setState(() => selectedType = value),
             ),
-
-            RadioListTile(
+            RadioListTile<EmergencyType>(
               title: const Text("I need to be picked up"),
               value: EmergencyType.pickup,
               groupValue: selectedType,
               onChanged: (value) => setState(() => selectedType = value),
             ),
-
             const SizedBox(height: 20),
-
             TextField(
               decoration: const InputDecoration(
                 labelText: "Optional note",
@@ -92,9 +92,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
               ),
               onChanged: (value) => note = value,
             ),
-
             const SizedBox(height: 20),
-
             ElevatedButton(
               onPressed: isSending ? null : sendAlert,
               child: isSending
@@ -107,4 +105,3 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     );
   }
 }
-

@@ -3,12 +3,14 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/ApiService.dart';
+import '../state/AppState.dart';
 import '../screens/EmergencyScreen.dart';
 import 'dart:async';
 
 class MeetupMapScreen extends StatefulWidget {
   final int userId;
   final int otherUserId;
+  final int matchId;
   final String placeName;
   final String placeAddress;
   final double? placeLat;
@@ -18,6 +20,7 @@ class MeetupMapScreen extends StatefulWidget {
     super.key,
     required this.userId,
     required this.otherUserId,
+    required this.matchId,
     required this.placeName,
     required this.placeAddress,
     this.placeLat,
@@ -40,12 +43,11 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
   Timer? _expireTimer;
 
   bool _loading = true;
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
-    debugPrint("DEBUG: MeetupMapScreen initState");
-
     if (widget.placeLat != null && widget.placeLon != null) {
       _placeLocation = LatLng(widget.placeLat!, widget.placeLon!);
     }
@@ -53,20 +55,59 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     _init();
 
     _expireTimer = Timer(const Duration(hours: 1), () {
-      if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        "/home",
-        (route) => false,
-      );
+      _exitToHomeUnconditionally();
     });
+
+    AppState().sosTriggered.addListener(_onSosTriggered);
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
-    _locationStream?.cancel();
-    _expireTimer?.cancel();
+    AppState().sosTriggered.removeListener(_onSosTriggered);
+    _cleanUpResources();
     super.dispose();
+  }
+
+  void _cleanUpResources() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _locationStream?.cancel();
+    _locationStream = null;
+    _expireTimer?.cancel();
+    _expireTimer = null;
+  }
+
+  void _exitToHomeUnconditionally() {
+    if (_navigated) return;
+    setState(() => _navigated = true);
+    _cleanUpResources();
+
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil("/home", (route) => false);
+  }
+
+  void _onSosTriggered() async {
+    if (!AppState().sosTriggered.value) return;
+    if (_navigated) return;
+
+    _navigated = true;
+    _cleanUpResources();
+
+    try {
+      await ApiService.sendMessage(
+        widget.matchId,
+        widget.userId,
+        "⚠️ Emergency SOS triggered. Meeting cancelled."
+      );
+      await ApiService.clearMeetLocation(widget.matchId);
+    } catch (e) {
+      debugPrint("SOS map state clear failure: $e");
+    } finally {
+      // Locks only release after the asynchronous backend calls have completed
+      AppState().resetSos();
+      AppState().isHandlingSosCleanup = false;
+      AppState().justTriggeredSos = false;
+    }
   }
 
   Future<void> _init() async {
@@ -77,18 +118,25 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
       await _startMyLocation();
       await _fetchOtherLocation();
 
-      _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-        _fetchOtherLocation();
+      _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+        if (_navigated) return;
+        await _fetchOtherLocation();
+
+        try {
+          final res = await ApiService.checkMutual(widget.matchId);
+          if (res != null && (res["expired"] == true || res["sosTriggered"] == true)) {
+            _exitToHomeUnconditionally();
+          }
+        } catch (_) {}
       });
     } catch (e) {
       debugPrint("MeetupMapScreen _init error: $e");
     } finally {
-      debugPrint("DEBUG: _init finally, mounted=$mounted, loading will be false");
       if (mounted) setState(() => _loading = false);
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || _navigated) return;
       if (_placeLocation != null) {
         _mapController.move(_placeLocation!, 15.0);
       } else if (_myLocation != null) {
@@ -99,11 +147,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
 
   Future<void> _geocodePlaceFromMidpoint() async {
     try {
-      final midpoint = await ApiService.getMidpoint(
-        widget.userId,
-        widget.otherUserId,
-      ).timeout(const Duration(seconds: 10));
-
+      final midpoint = await ApiService.getMidpoint(widget.userId, widget.otherUserId);
       final lat = (midpoint["lat"] as num?)?.toDouble();
       final lon = (midpoint["lon"] as num?)?.toDouble();
       if (lat != null && lon != null) {
@@ -117,34 +161,22 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
   Future<void> _startMyLocation() async {
     try {
       await Geolocator.requestPermission();
+      final position = await Geolocator.getCurrentPosition().timeout(const Duration(seconds: 10));
 
-      final position = await Geolocator.getCurrentPosition()
-          .timeout(const Duration(seconds: 10));
-
-      if (mounted) {
+      if (mounted && !_navigated) {
         setState(() => _myLocation = LatLng(position.latitude, position.longitude));
       }
 
-      await ApiService.updateLocation(
-        widget.userId,
-        position.latitude,
-        position.longitude,
-      );
+      await ApiService.updateLocation(widget.userId, position.latitude, position.longitude);
 
       _locationStream = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10,
-        ),
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10),
       ).listen((pos) async {
+        if (_navigated) return;
         if (mounted) {
           setState(() => _myLocation = LatLng(pos.latitude, pos.longitude));
         }
-        await ApiService.updateLocation(
-          widget.userId,
-          pos.latitude,
-          pos.longitude,
-        );
+        await ApiService.updateLocation(widget.userId, pos.latitude, pos.longitude);
       });
     } catch (e) {
       debugPrint("_startMyLocation error: $e");
@@ -156,7 +188,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
       final user = await ApiService.getUser(widget.otherUserId);
       final lat = (user["lat"] as num?)?.toDouble();
       final lon = (user["lon"] as num?)?.toDouble();
-      if (lat != null && lon != null && mounted) {
+      if (lat != null && lon != null && mounted && !_navigated) {
         setState(() => _otherLocation = LatLng(lat, lon));
       }
     } catch (e) {
@@ -173,10 +205,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.placeName),
-            Text(
-              widget.placeAddress,
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
-            ),
+            Text(widget.placeAddress, style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         backgroundColor: Colors.green,
@@ -184,13 +213,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           IconButton(
             icon: const Icon(Icons.sos, color: Colors.white),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      EmergencyScreen(userId: widget.userId),
-                ),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (_) => EmergencyScreen(userId: widget.userId)));
             },
           ),
         ],
@@ -202,14 +225,12 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                 FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
-                    initialCenter:
-                        _placeLocation ?? _myLocation ?? const LatLng(0, 0),
+                    initialCenter: _placeLocation ?? _myLocation ?? const LatLng(0, 0),
                     initialZoom: 15.0,
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.radius.app',
                     ),
                     MarkerLayer(
@@ -221,21 +242,13 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                             height: 60,
                             child: Column(
                               children: const [
-                                Icon(
-                                  Icons.location_pin,
-                                  color: Colors.red,
-                                  size: 40,
-                                ),
+                                Icon(Icons.location_pin, color: Colors.red, size: 40),
                                 SizedBox(
                                   width: 60,
                                   child: Text(
                                     "Meet here",
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.red,
-                                    ),
+                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.red),
                                   ),
                                 ),
                               ],
@@ -246,55 +259,19 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                             point: _myLocation!,
                             width: 40,
                             height: 40,
-                            child: const Icon(
-                              Icons.person_pin_circle,
-                              color: Colors.blue,
-                              size: 40,
-                            ),
+                            child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
                           ),
                         if (_otherLocation != null)
                           Marker(
                             point: _otherLocation!,
                             width: 40,
                             height: 40,
-                            child: const Icon(
-                              Icons.person_pin_circle,
-                              color: Colors.orange,
-                              size: 40,
-                            ),
+                            child: const Icon(Icons.person_pin_circle, color: Colors.orange, size: 40),
                           ),
                       ],
                     ),
                   ],
                 ),
-
-                // Legend
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black26, blurRadius: 4)
-                      ],
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _LegendItem(color: Colors.red, label: "Meet here"),
-                        SizedBox(height: 6),
-                        _LegendItem(color: Colors.blue, label: "You"),
-                        SizedBox(height: 6),
-                        _LegendItem(color: Colors.orange, label: "Them"),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // SOS FAB
                 Positioned(
                   bottom: 30,
                   left: 16,
@@ -302,19 +279,11 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                     heroTag: "sos",
                     backgroundColor: Colors.red,
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              EmergencyScreen(userId: widget.userId),
-                        ),
-                      );
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => EmergencyScreen(userId: widget.userId)));
                     },
                     child: const Icon(Icons.sos, color: Colors.white),
                   ),
                 ),
-
-                // Recenter FAB
                 Positioned(
                   bottom: 30,
                   right: 16,
@@ -333,25 +302,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                 ),
               ],
             ),
-    );
-  }
-}
-
-class _LegendItem extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _LegendItem({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.circle, color: color, size: 12),
-        const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
     );
   }
 }

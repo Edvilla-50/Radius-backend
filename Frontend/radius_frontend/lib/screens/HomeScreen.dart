@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/ApiService.dart';
+import '../state/AppState.dart';
 import 'MapScreen.dart';
 import 'RequestsScreen.dart';
 import 'ProfileScreen.dart';
@@ -18,12 +19,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _stopListener = false;
   bool _isDialogShowing = false;
-
   int _listenerGeneration = 0;
 
   int index = 0;
   int? userId;
-
   final Set<int> _shownRequestIds = {};
 
   @override
@@ -43,14 +42,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     setState(() => userId = storedId);
-
     _shownRequestIds.clear();
     _startIncomingListener();
   }
 
   Future<void> _startIncomingListener() async {
     _stopListener = false;
-
     final myGeneration = ++_listenerGeneration;
 
     while (mounted && !_stopListener && _listenerGeneration == myGeneration) {
@@ -58,9 +55,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
+      // CRITICAL FIX: Bypass polling entirely while backend SOS state is cleaning up
+      if (AppState().isHandlingSosCleanup || AppState().justTriggeredSos) {
+        debugPrint("HOME: SOS cleanup active. Skipping active match verification.");
+        continue;
+      }
+
       try {
         final incoming = await ApiService.getIncoming(userId!);
-
         if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
         if (incoming.isNotEmpty) {
@@ -77,20 +79,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
-        // Returns { "matchId": int, "otherUserId": int } or null
         final mutual = await ApiService.checkMutualForUser(userId!);
-
         if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
-        if (mutual != null && !_isDialogShowing) {
+        // Double check lock to confirm we are safe to route to suggestions
+        if (mutual != null && !_isDialogShowing && !AppState().isHandlingSosCleanup) {
           _stopListener = true;
 
           final matchId = (mutual["matchId"] as num).toInt();
           final otherUserId = (mutual["otherUserId"] as num).toInt();
 
-          // pushReplacement so HomeScreen is removed from the stack.
-          // SuggestionsScreen then pushReplacement to MeetupMapScreen,
-          // so there is no back-stack entry that can re-trigger the listener.
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -101,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           );
-
           break;
         }
       } catch (e) {
@@ -137,19 +134,15 @@ class _HomeScreenState extends State<HomeScreen> {
           TextButton(
             onPressed: () async {
               _stopListener = true;
-
               await ApiService.respond(reqId, true);
               if (!mounted) return;
 
-              final otherUserId =
-                  requesterId == userId ? receiverId : requesterId;
-
-              Navigator.pop(context); // close dialog
+              final otherUserId = requesterId == userId ? receiverId : requesterId;
+              Navigator.pop(context);
 
               await Future.delayed(const Duration(milliseconds: 200));
               if (!mounted) return;
 
-              // pushReplacement so HomeScreen leaves the stack entirely.
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -171,9 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     if (userId == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final pages = [
@@ -185,20 +176,15 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: pages,
-      ),
+      body: IndexedStack(index: index, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map), label: 'Map'),
-          NavigationDestination(
-              icon: Icon(Icons.handshake), label: 'Requests'),
+          NavigationDestination(icon: Icon(Icons.handshake), label: 'Requests'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-          NavigationDestination(
-              icon: Icon(Icons.interests), label: 'Trait Stack'),
+          NavigationDestination(icon: Icon(Icons.interests), label: 'Trait Stack'),
           NavigationDestination(
             icon: Icon(Icons.emergency, color: Colors.red),
             selectedIcon: Icon(Icons.emergency, color: Colors.red),

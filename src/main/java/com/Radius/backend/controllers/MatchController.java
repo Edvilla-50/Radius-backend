@@ -80,4 +80,31 @@ public class MatchController {
         }
         return ResponseEntity.ok(result);
     }
+
+    // MATCHES FLUTTER: ApiService.clearMeetLocation
+    @PostMapping("/meet/clearLocation")
+    public ResponseEntity<?> clearMeetLocation(@RequestBody Map<String, Integer> payload) {
+        Integer matchId = payload.get("matchId");
+        if (matchId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing matchId"));
+        }
+        
+        meetService.clearMeetLocation(matchId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Match session terminated."));
+    }
+
+    // MATCHES FLUTTER: ApiService.checkMutual(matchId)
+    // This allows the other user's app loop to see the "CANCELLED" status and instantly return home!
+    @GetMapping("/meet/location/mutual/{matchId}")
+    public ResponseEntity<?> getMatchSessionStatus(@PathVariable int matchId) {
+        String status = meetService.getMatchStatus(matchId);
+        boolean isCancelled = "CANCELLED".equals(status);
+        
+        // Return JSON format expected by both Map and Suggestion screens
+        return ResponseEntity.ok(Map.of(
+            "mutual", !"CANCELLED".equals(status) && !"DECLINED".equals(status),
+            "expired", isCancelled,
+            "sosTriggered", isCancelled
+        ));
+    }
 }
