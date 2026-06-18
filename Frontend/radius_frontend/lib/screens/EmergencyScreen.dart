@@ -7,7 +7,6 @@ import 'package:radius_frontend/state/AppState.dart';
 class EmergencyScreen extends StatefulWidget {
   final int userId;
   const EmergencyScreen({super.key, required this.userId});
-
   @override
   State<EmergencyScreen> createState() => _EmergencyScreenState();
 }
@@ -22,7 +21,6 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     setState(() => isSending = true);
     try {
       final position = await LocationService.getCurrentLocation();
-
       await ApiService.sendEmergency(
         userId: widget.userId,
         type: selectedType!,
@@ -31,7 +29,16 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         note: note,
       );
 
-      // 1. Notify background screens to cancel their active timers/streams
+      // Notify the screen underneath (SuggestionsScreen / MeetupMapScreen) that
+      // an SOS was triggered. That screen owns the matchId and is responsible
+      // for sending the cancellation message, clearing the meet location, and
+      // navigating home itself via its own sosTriggered listener.
+      //
+      // IMPORTANT: We do NOT navigate home from here. Doing so previously raced
+      // against the underlying screen's cleanup — popping/clearing the navigator
+      // stack could dispose that screen (and remove its sosTriggered listener)
+      // before its _onSosTriggered handler ran, so the cancellation message and
+      // clearMeetLocation call were sometimes skipped entirely.
       AppState().triggerSos();
 
       if (!mounted) return;
@@ -39,11 +46,11 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
         const SnackBar(content: Text("Emergency alert sent")),
       );
 
-      // 2. Clear the entire navigation history stack and take the local user Home
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        "/home",
-        (route) => false,
-      );
+      // Simply pop back to the screen that pushed us (SuggestionsScreen or
+      // MeetupMapScreen). That screen's sosTriggered listener will have already
+      // fired (or will fire momentarily) and will handle its own cleanup and
+      // navigation to "/home".
+      Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/ApiService.dart';
 import '../state/AppState.dart';
 import '../screens/EmergencyScreen.dart';
@@ -6,13 +7,11 @@ import 'MeetupMapScreen.dart';
 import 'dart:async';
 
 class SuggestionsScreen extends StatefulWidget {
-  final int userId;
   final int otherUserId;
   final int matchId;
 
   const SuggestionsScreen({
     super.key,
-    required this.userId,
     required this.otherUserId,
     required this.matchId,
   });
@@ -25,6 +24,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   bool _loading = true;
   dynamic _suggestions;
   List<dynamic> _messages = [];
+
+  int? userId;
 
   bool _initialCheckDone = false;
   bool _waitingForRecipient = false;
@@ -44,9 +45,27 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSuggestions();
-    _loadMessages();
-    _checkSelectedLocation();
+    _initScreenData();
+
+    _expireTimer = Timer(const Duration(hours: 1), () {
+      _handleSessionExpired();
+    });
+
+    AppState().sosTriggered.addListener(_onSosTriggered);
+  }
+
+  Future<void> _initScreenData() async {
+    final prefs = await SharedPreferences.getInstance();
+    userId = prefs.getInt("userId");
+
+    if (userId == null) {
+      if (mounted) Navigator.of(context).pushReplacementNamed("/login");
+      return;
+    }
+
+    await _loadSuggestions();
+    await _loadMessages();
+    await _checkSelectedLocation();
 
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_navigated) return;
@@ -54,12 +73,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       _checkSelectedLocation();
       _checkMutualAcceptance();
     });
-
-    _expireTimer = Timer(const Duration(hours: 1), () {
-      _handleSessionExpired();
-    });
-
-    AppState().sosTriggered.addListener(_onSosTriggered);
   }
 
   @override
@@ -80,7 +93,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   void _onSosTriggered() async {
     if (!AppState().sosTriggered.value) return;
-    if (_navigated) return;
+    if (_navigated || userId == null) return;
     
     setState(() {
       _navigated = true;
@@ -91,14 +104,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     try {
       await ApiService.sendMessage(
         widget.matchId,
-        widget.userId,
+        userId!,
         "⚠️ Emergency SOS triggered. Meeting cancelled."
       );
       await ApiService.clearMeetLocation(widget.matchId);
     } catch (e) {
       debugPrint("Error saving SOS updates: $e");
     } finally {
-      // Locks only release after the asynchronous backend calls have completed
       AppState().resetSos();
       AppState().isHandlingSosCleanup = false;
       AppState().justTriggeredSos = false;
@@ -109,7 +121,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Future<void> _goToMeetupMap(String name, String address, {double? lat, double? lon}) async {
-    if (_navigated) return;
+    if (_navigated || userId == null) return;
     setState(() => _navigated = true);
     _cleanUpTimers();
 
@@ -129,7 +141,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => MeetupMapScreen(
-          userId: widget.userId,
+          userId: userId!,
           otherUserId: widget.otherUserId,
           matchId: widget.matchId,
           placeName: name,
@@ -151,8 +163,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Future<void> _loadSuggestions() async {
+    if (userId == null) return;
     try {
-      final res = await ApiService.getInterestSuggestions(widget.userId, widget.otherUserId);
+      final res = await ApiService.getInterestSuggestions(userId!, widget.otherUserId);
       if (!mounted || _navigated) return;
       setState(() {
         _suggestions = res;
@@ -184,7 +197,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Future<void> _checkSelectedLocation() async {
-    if (_navigated) return;
+    if (_navigated || userId == null) return;
 
     try {
       final loc = await ApiService.getLocation(widget.matchId);
@@ -207,7 +220,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
       if (chooserId == null) return;
 
-      final iAmChooser = chooserId == widget.userId;
+      final iAmChooser = chooserId == userId;
       final iAccepted = iAmChooser ? acceptedByA : acceptedByB;
       _iAmChooser = iAmChooser;
 
@@ -267,7 +280,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   void _showIncomingLocationPopup(String name, String address) {
-    if (_navigated) return;
+    if (_navigated || userId == null) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -280,7 +293,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               Navigator.pop(context);
               if (_navigated) return;
               try {
-                await ApiService.acceptLocation(widget.matchId, widget.userId);
+                await ApiService.acceptLocation(widget.matchId, userId!);
                 if (mounted && !_navigated) setState(() => _waitingForRecipient = false);
               } catch (e) {
                 debugPrint("acceptLocation error: $e");
@@ -295,17 +308,17 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   Future<void> _sendMessage() async {
     final text = _msgController.text.trim();
-    if (text.isEmpty || _navigated) return;
+    if (text.isEmpty || _navigated || userId == null) return;
 
     _msgController.clear();
     try {
-      await ApiService.sendMessage(widget.matchId, widget.userId, text);
+      await ApiService.sendMessage(widget.matchId, userId!, text);
       await _loadMessages();
     } catch (_) {}
   }
 
   void _confirmLocationSelection(dynamic place) {
-    if (_navigated) return;
+    if (_navigated || userId == null) return;
     final name = (place["name"] ?? "this place").toString();
     final address = (place["location"]?["formatted_address"] ?? "").toString();
     final fsqId = (place["fsq_place_id"] ?? "").toString();
@@ -324,7 +337,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               Navigator.pop(context);
               if (_navigated) return;
               try {
-                await ApiService.selectMeetLocation(widget.matchId, widget.userId, fsqId, name, address, lat, lon);
+                await ApiService.selectMeetLocation(widget.matchId, userId!, fsqId, name, address, lat, lon);
                 if (!mounted || _navigated) return;
                 _iAmChooser = true;
                 _locationEverExisted = true;
@@ -346,7 +359,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
+    if (_loading || userId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -361,7 +374,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
           IconButton(
             icon: const Icon(Icons.sos, color: Colors.white),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => EmergencyScreen(userId: widget.userId)));
+              Navigator.push(context, MaterialPageRoute(builder: (_) => EmergencyScreen(userId: userId!)));
             },
           )
         ],
@@ -429,7 +442,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
-                      final isMe = ((msg["senderId"] as num?)?.toInt() ?? -1) == widget.userId;
+                      final isMe = ((msg["senderId"] as num?)?.toInt() ?? -1) == userId;
 
                       return Align(
                         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

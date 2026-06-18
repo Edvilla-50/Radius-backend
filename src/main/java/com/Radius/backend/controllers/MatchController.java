@@ -4,6 +4,7 @@ import com.Radius.backend.Entity.MeetRequest;
 import com.Radius.backend.Entity.User;
 import com.Radius.backend.Services.MatchService;
 import com.Radius.backend.Services.MeetService;
+import com.Radius.backend.Services.MeetLocationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,10 +17,12 @@ public class MatchController {
 
     private final MatchService service;
     private final MeetService meetService;
+    private final MeetLocationService meetLocationService;
 
-    public MatchController(MatchService service, MeetService meetService) {
+    public MatchController(MatchService service, MeetService meetService, MeetLocationService meetLocationService) {
         this.service = service;
         this.meetService = meetService;
+        this.meetLocationService = meetLocationService;
     }
 
     @GetMapping("/{id}")
@@ -82,14 +85,23 @@ public class MatchController {
     }
 
     // MATCHES FLUTTER: ApiService.clearMeetLocation
+    // FIXED: Also marks the MeetLocation row as cancelled (via
+    // MeetLocationService.cancelLocation) instead of leaving it untouched.
+    // The OTHER user's polling loop calls GET /meet/location/mutual/{matchId}
+    // (MeetLocationController/MeetLocationService.checkMutual), which now
+    // checks this cancelled flag and reports expired:true/sosTriggered:true.
+    // Previously this endpoint only cancelled the MeetRequest rows, leaving
+    // the separate MeetLocation row untouched, so the side that didn't
+    // trigger SOS never received any cancellation signal and stayed stuck.
     @PostMapping("/meet/clearLocation")
     public ResponseEntity<?> clearMeetLocation(@RequestBody Map<String, Integer> payload) {
         Integer matchId = payload.get("matchId");
         if (matchId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing matchId"));
         }
-        
+
         meetService.clearMeetLocation(matchId);
+        meetLocationService.cancelLocation(matchId);
         return ResponseEntity.ok(Map.of("success", true, "message", "Match session terminated."));
     }
 

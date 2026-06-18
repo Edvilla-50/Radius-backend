@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
 
-      // CRITICAL FIX: Bypass polling entirely while backend SOS state is cleaning up
+      // Bypass polling entirely while backend SOS state is cleaning up
       if (AppState().isHandlingSosCleanup || AppState().justTriggeredSos) {
         debugPrint("HOME: SOS cleanup active. Skipping active match verification.");
         continue;
@@ -89,11 +89,15 @@ class _HomeScreenState extends State<HomeScreen> {
           final matchId = (mutual["matchId"] as num).toInt();
           final otherUserId = (mutual["otherUserId"] as num).toInt();
 
+          // Keep state sync updated before moving away
+          AppState().setActiveMatch(matchId);
+
+          if (!mounted) break;
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => SuggestionsScreen(
-                userId: userId!,
+                // FIXED: Removed the obsolete userId named parameter
                 otherUserId: otherUserId,
                 matchId: matchId,
               ),
@@ -143,11 +147,14 @@ class _HomeScreenState extends State<HomeScreen> {
               await Future.delayed(const Duration(milliseconds: 200));
               if (!mounted) return;
 
+              // Keep state sync updated before moving away
+              AppState().setActiveMatch(matchId);
+
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (_) => SuggestionsScreen(
-                    userId: userId!,
+                    // FIXED: Removed the obsolete userId named parameter
                     otherUserId: otherUserId,
                     matchId: matchId,
                   ),

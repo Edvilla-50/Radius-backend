@@ -90,7 +90,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     if (!AppState().sosTriggered.value) return;
     if (_navigated) return;
 
-    _navigated = true;
+    setState(() => _navigated = true);
     _cleanUpResources();
 
     try {
@@ -108,6 +108,9 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
       AppState().isHandlingSosCleanup = false;
       AppState().justTriggeredSos = false;
     }
+
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil("/home", (route) => false);
   }
 
   Future<void> _init() async {

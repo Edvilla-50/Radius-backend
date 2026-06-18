@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/ApiService.dart';
+import '../state/AppState.dart'; // ADDED: Import AppState to keep everything synchronized
 import 'SuggestionsScreen.dart';
 import 'ProfilePreviewScreen.dart';
 
@@ -56,13 +57,17 @@ class _RequestsScreenState extends State<RequestsScreen> {
       if (!mounted) return;
       final otherUserId =
           requesterId == widget.userId ? receiverId : requesterId;
+
+      // FIX 1: Explicitly register the match context to AppState so SOS works instantly
+      AppState().setActiveMatch(matchId);
+
+      // FIX 2: Fixed constructor parameter alignment to match your updated SuggestionsScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => SuggestionsScreen(
-            userId: widget.userId,
-            otherUserId: otherUserId,
             matchId: matchId,
+            otherUserId: otherUserId,
           ),
         ),
       );

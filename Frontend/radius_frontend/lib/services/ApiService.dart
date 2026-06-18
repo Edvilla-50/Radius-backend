@@ -66,7 +66,7 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  // CRITICAL FIX: Point this to the correct Spring Boot MatchController endpoint
+  // FIXED PATHWAY: Aligned to handle backend cancellation and break infinite routing loops
   static Future<void> clearMeetLocation(int matchId) async {
     final url = Uri.parse("$baseUrl/match/meet/clearLocation");
 
@@ -80,7 +80,6 @@ class ApiService {
       throw Exception("Failed to clear meet location and cancel session");
     }
   }
-
 
   static Future<void> sendMeetRequest(int userId, int matchId) async {
     final url = Uri.parse("$baseUrl/match/meet/request");
@@ -141,6 +140,7 @@ class ApiService {
       throw Exception("Failed to update interests");
     }
   }
+
   static Future<void> updatePreferredDistance(int userId, double distance) async {
     final res = await http.post(
       Uri.parse("$baseUrl/user/$userId/preferred-distance"),
@@ -152,6 +152,7 @@ class ApiService {
       throw Exception("Failed to update preferred distance");
     }
   }
+
   static Future<void> updateGhostMode(int userId, bool ghostMode) async {
     final res = await http.post(
       Uri.parse("$baseUrl/user/$userId/ghost-mode"),
@@ -163,6 +164,7 @@ class ApiService {
       throw Exception("Failed to update ghost mode");
     }
   }
+
   static Future<void> updateProfileHtml(int userId, String html) async {
     final res = await http.put(
       Uri.parse("$baseUrl/user/$userId/profile-html"),
@@ -382,12 +384,17 @@ class ApiService {
   static Future<Map<String, dynamic>> checkMutual(int matchId) async {
     final url = Uri.parse("$baseUrl/meet/location/mutual/$matchId");
 
-    final res = await http.get(url);
+    try {
+      final res = await http.get(url);
 
-    if (res.statusCode != 200) {
-      return {"mutual": false};
+      if (res.statusCode == 200 && res.body.isNotEmpty) {
+        return jsonDecode(res.body);
+      }
+    } catch (e) {
+      print("Network error checking match mutual status: $e");
     }
 
-    return jsonDecode(res.body);
+    // Secure status fallback state profile if communication breaks
+    return {"mutual": false, "expired": true, "sosTriggered": true};
   }
 }

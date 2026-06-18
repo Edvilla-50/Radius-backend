@@ -21,6 +21,7 @@ public interface MeetRequestRepository extends JpaRepository<MeetRequest, Intege
 
     List<MeetRequest> findByReceiverId(int receiverId);
 
+    
     List<MeetRequest> findByRequesterId(int requesterId);
 
     // FIXES MEETSERVICE COMPILATION ERROR: Tells Spring Data to fetch rows by matchId

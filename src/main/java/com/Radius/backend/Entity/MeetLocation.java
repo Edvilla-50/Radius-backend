@@ -1,15 +1,12 @@
 package com.Radius.backend.Entity;
-
 import jakarta.persistence.*;
 import java.time.Instant;
 
 @Entity
 public class MeetLocation {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
-
     private int matchId;
     private int chooserId;
     private String locationId;
@@ -17,17 +14,21 @@ public class MeetLocation {
     private String address;
     private Double lat;
     private Double lon;
-
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
-
     private boolean acceptedByA;
     private boolean acceptedByB;
+
+    // Set true when an emergency/SOS cancels the meetup. Distinguishes "this
+    // meetup was actively cancelled" from "no location has been chosen yet" —
+    // both look like an absent/inactive location otherwise, but only the
+    // cancelled case should make the other user's poll loop bail out home.
+    private boolean cancelled = false;
 
     public MeetLocation() {}
 
     public MeetLocation(int matchId, int chooserId, String locationId,
-                        String name, String address, Double lat, Double lon) {
+            String name, String address, Double lat, Double lon) {
         this.matchId    = matchId;
         this.chooserId  = chooserId;
         this.locationId = locationId;
@@ -51,4 +52,6 @@ public class MeetLocation {
     public void setAcceptedByA(boolean v) { this.acceptedByA = v; }
     public boolean isAcceptedByB()        { return acceptedByB; }
     public void setAcceptedByB(boolean v) { this.acceptedByB = v; }
+    public boolean isCancelled()        { return cancelled; }
+    public void setCancelled(boolean v) { this.cancelled = v; }
 }
