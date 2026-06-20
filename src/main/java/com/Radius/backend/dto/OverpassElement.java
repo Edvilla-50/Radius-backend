@@ -1,15 +1,17 @@
 package com.Radius.backend.dto;
 
 import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record OverpassElement (
     long id,
     String type,
-    double lat,
-    double lon,
-    Coordinate center, // 👈 Added center field to unpack nested polygon coordinates
+    Double lat,          // Changed from double -> Double to allow safe null handling
+    Double lon,          // Changed from double -> Double to allow safe null handling
+    Coordinate center,   // Unpacks nested polygon center coordinate objects
     Map<String, String> tags
 ){
-    // Companion record to handle nested center attributes from out body center;
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record Coordinate(double lat, double lon) {}
 }

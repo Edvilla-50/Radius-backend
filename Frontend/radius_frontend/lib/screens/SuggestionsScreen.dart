@@ -172,19 +172,21 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   Future<void> _loadSuggestions() async {
-    if (userId == null) return;
-    try {
-      final res = await ApiService.getInterestSuggestions(userId!, widget.otherUserId);
-      if (!mounted || _navigated) return;
-      setState(() {
-        _suggestions = res;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    }
+  if (userId == null) return;
+  try {
+    // Pass widget.matchId as the third argument here
+    final res = await ApiService.getInterestSuggestions(userId!, widget.otherUserId, widget.matchId);
+    if (!mounted || _navigated) return;
+    setState(() {
+      _suggestions = res;
+      _loading = false;
+    });
+  } catch (e) {
+    debugPrint("🔴 Error fetching suggestions: $e"); // Log the error to your console
+    if (!mounted) return;
+    setState(() => _loading = false);
   }
+}
 
   Future<void> _loadMessages() async {
     if (_navigated) return;

@@ -218,8 +218,10 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  static Future<Map<String, dynamic>> getInterestSuggestions(int a, int b) async {
-    final url = Uri.parse("$baseUrl/match/meet/suggestions/interests/$a/$b");
+  // Change this method to accept matchId as the third parameter
+  static Future<Map<String, dynamic>> getInterestSuggestions(int a, int b, int matchId) async {
+    // Add /$matchId to the end of the URL path string
+    final url = Uri.parse("$baseUrl/match/meet/suggestions/interests/$a/$b/$matchId");
 
     final res = await http.get(url);
 
