@@ -11,7 +11,4 @@ public record OverpassElement (
     Double lon,          // Changed from double -> Double to allow safe null handling
     Coordinate center,   // Unpacks nested polygon center coordinate objects
     Map<String, String> tags
-){
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Coordinate(double lat, double lon) {}
-}
+) {}
