@@ -99,15 +99,14 @@ public class OverpassPlacesService {
                 continue; 
             }
 
-            // FIX: Prioritize flat node elements, fallback to nested way center metrics
             double placeLat = 0.0;
             double placeLon = 0.0;
 
-            if (element.lat() != 0.0) {
+            // FIX: Explicitly handle null properties safely to prevent NullPointer unboxing exceptions
+            if (element.lat() != null && !element.lat().equals(0.0)) {
                 placeLat = element.lat();
                 placeLon = element.lon();
-            } else if (element.center() != null) {
-                // Safely handles geometry center blocks computed by "out body center;"
+            } else if (element.center() != null && element.center().lat() != null) {
                 placeLat = element.center().lat();
                 placeLon = element.center().lon();
             }
