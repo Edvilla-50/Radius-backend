@@ -116,6 +116,16 @@ public class MatchController {
     @GetMapping("/meet/location/mutual/{matchId}")
     public ResponseEntity<?> getMatchSessionStatus(@PathVariable int matchId) {
         String status = meetService.getMatchStatus(matchId);
+        
+        // 🌟 FIX: If there are no requests found, return safe defaults instead of let-through flags!
+        if (status == null || "NOT_FOUND".equals(status)) {
+            return ResponseEntity.ok(Map.of(
+                "mutual", false,
+                "expired", false,
+                "sosTriggered", false
+            ));
+        }
+
         boolean isCancelled = "CANCELLED".equals(status);
         
         // Return JSON format expected by both Map and Suggestion screens
