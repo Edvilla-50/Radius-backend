@@ -28,10 +28,10 @@ public class OverpassPlacesService {
         this.restTemplate = restTemplate;
     }
 
-    public SuggestionsResponse findPlacesForInterests(double lat, double lon, int radius, List<String> sharedInterests) {
-        List<Map<String, String>> tagFilters = InterestTagMapper.resolveTagFilters(sharedInterests);
-
+    public SuggestionsResponse findPlacesForInterests(double lat, double lon, int radius, List<Map<String, String>> tagFilters) {
+        
         List<SuggestedPlace> places = List.of();
+        
         if (!tagFilters.isEmpty()) {
             OverpassResponse response = callOverpass(buildInterestQuery(lat, lon, radius, tagFilters));
             places = mapToSuggestedPlaces(response);
@@ -57,7 +57,6 @@ public class OverpassPlacesService {
         return restTemplate.postForObject(OVERPASS_URL, request, OverpassResponse.class);
     }
 
-    // FIX: Using nwr (nodes, ways, relations) and out body center;
     private String buildInterestQuery(double lat, double lon, int radius, List<Map<String, String>> tagFilters) {
         StringBuilder qb = new StringBuilder();
         qb.append("[out:json][timeout:25];\n(\n");
@@ -74,7 +73,6 @@ public class OverpassPlacesService {
         return qb.toString();
     }
 
-    // FIX: Switched elements from node to nwr and appended center calculation
     private String buildFallbackQuery(double lat, double lon, int radius) {
         return String.format("""
                 [out:json][timeout:25];
@@ -101,9 +99,23 @@ public class OverpassPlacesService {
                 continue; 
             }
 
-            // Fallback coordinate collection if structural way element center properties are populated
-            double placeLat = element.lat() != 0.0 ? element.lat() : (tags.containsKey("lat") ? Double.parseDouble(tags.get("lat")) : 0.0);
-            double placeLon = element.lon() != 0.0 ? element.lon() : (tags.containsKey("lon") ? Double.parseDouble(tags.get("lon")) : 0.0);
+            // FIX: Prioritize flat node elements, fallback to nested way center metrics
+            double placeLat = 0.0;
+            double placeLon = 0.0;
+
+            if (element.lat() != 0.0) {
+                placeLat = element.lat();
+                placeLon = element.lon();
+            } else if (element.center() != null) {
+                // Safely handles geometry center blocks computed by "out body center;"
+                placeLat = element.center().lat();
+                placeLon = element.center().lon();
+            }
+
+            // Drop values that lack proper coordinates to protect the Flutter Map UI
+            if (placeLat == 0.0 || placeLon == 0.0) {
+                continue;
+            }
 
             places.add(new SuggestedPlace(
                     String.valueOf(element.id()),

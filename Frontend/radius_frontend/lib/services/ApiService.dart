@@ -412,7 +412,7 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> checkMutual(int matchId) async {
+ static Future<Map<String, dynamic>> checkMutual(int matchId) async {
     final url = Uri.parse("$baseUrl/meet/location/mutual/$matchId");
 
     try {
@@ -421,10 +421,15 @@ class ApiService {
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         return jsonDecode(res.body);
       }
+      
+      // If the backend returns a 404, 500, or empty body, treat it as pending, not expired
+      debugPrint("⚠️ Warning: /meet/location/mutual returned status ${res.statusCode}");
+      return {"mutual": false, "expired": false, "sosTriggered": false};
+      
     } catch (e) {
       debugPrint("Network error checking match mutual status: $e");
+      // FIX: Fall back to false flags so the polling timer doesn't break instantly
+      return {"mutual": false, "expired": false, "sosTriggered": false};
     }
-
-    return {"mutual": false, "expired": true, "sosTriggered": true};
   }
 }

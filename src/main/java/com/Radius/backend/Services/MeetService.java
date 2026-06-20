@@ -1,12 +1,12 @@
 package com.Radius.backend.Services;
-
+import com.Radius.backend.Services.OverpassPlacesService;
 import com.Radius.backend.Bases.MeetRequestRepository;
 import com.Radius.backend.Bases.UserRepository;
 import com.Radius.backend.Entity.InterestEntity;
 import com.Radius.backend.Entity.MeetRequest;
 import com.Radius.backend.Entity.User;
 import com.Radius.backend.dto.SuggestionsResponse;
-
+import com.Radius.backend.Services.OverpassPlacesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -230,10 +230,20 @@ public class MeetService {
         if (shared.isEmpty()) {
             result = getSuggestions(lat, lon);
         } else {
-            String query = mapCategoryToQuery(shared.get(0));
-            result = getSuggestionsByQuery(lat, lon, query);
+            // FIX: Convert category string to the mapper's unified dictionary key string
+            String targetKey = mapCategoryToQuery(shared.get(0));
+            
+            // FIX: Map dictionary key to true structural raw OSM tag queries via your static util class
+            List<Map<String, String>> filters = InterestTagMapper.resolveTagFilters(List.of(targetKey));
 
-            List results = (List) result.get("results");
+            if (filters.isEmpty()) {
+                result = getSuggestions(lat, lon);
+            } else {
+                // FIX: Route structured tag mappings to your Overpass client system
+                result = getSuggestionsByQuery(lat, lon, filters);
+            }
+
+            List<?> results = (List<?>) result.get("results");
             if (results == null || results.isEmpty()) {
                 result = getSuggestions(lat, lon);
             }
@@ -245,13 +255,14 @@ public class MeetService {
 
     // ---------------- OVERPASS ----------------
 
-   public Map<String, Object> getSuggestions(double lat, double lon) {
+    public Map<String, Object> getSuggestions(double lat, double lon) {
         SuggestionsResponse response = overpassPlacesService.findNearbyPlaces(lat, lon, 1500);
         return Map.of("results", response.results());
     }
 
-    public Map<String, Object> getSuggestionsByQuery(double lat, double lon, String query) {
-        SuggestionsResponse response = overpassPlacesService.findPlacesForInterests(lat, lon, 1500, List.of(query));
+    // FIX: Changed third parameter type to match InterestTagMapper output payload (List<Map<String, String>>)
+    public Map<String, Object> getSuggestionsByQuery(double lat, double lon, List<Map<String, String>> filters) {
+        SuggestionsResponse response = overpassPlacesService.findPlacesForInterests(lat, lon, 1500, filters);
         return Map.of("results", response.results());
     }
 
@@ -280,7 +291,7 @@ public class MeetService {
     // ---------------- CATEGORY MAP ----------------
 
     private String mapCategoryToQuery(String category) {
-        return switch (category.toLowerCase()) {
+        return switch (category.toLowerCase().trim()) {
             case "coffee", "coffeetasting" -> "coffeetasting";
             case "food", "restaurant", "foodie" -> "foodtours";
             case "gym", "fitness" -> "gym";
@@ -290,9 +301,10 @@ public class MeetService {
             case "music", "concert" -> "concert";
             case "cinema", "movies" -> "movienights";
             case "bowling" -> "bowling";
-            default -> "restaurant"; 
+            default -> "foodtours"; // FIX: Default to a registered dictionary fallback key
         };
     }
+
     public synchronized Map<String, Object> getOrCreateSuggestions(int userA, int userB, int matchId) {
         return getSuggestionsForMatch(userA, userB, matchId);
     }
