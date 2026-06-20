@@ -1,4 +1,5 @@
 package com.Radius.backend.Services;
+
 import com.Radius.backend.Bases.MeetLocationRepository;
 import com.Radius.backend.Entity.MeetLocation;
 import org.springframework.stereotype.Service;
@@ -30,21 +31,28 @@ public class MeetLocationService {
     public Map<String, Object> getLocation(int matchId) {
         MeetLocation loc = repo.findByMatchId(matchId);
         Map<String, Object> result = new HashMap<>();
+        
+        // FIX: If no location is selected yet, it is NOT expired.
         if (loc == null) {
-            result.put("expired", true);
+            result.put("expired", false);
+            result.put("hasSelection", false); // Helpful extra flag for Flutter
             return result;
         }
+        
         if (loc.isCancelled()) {
             result.put("expired", true);
             return result;
         }
+        
         boolean expired = loc.getCreatedAt().isBefore(
                 Instant.now().minus(1, ChronoUnit.HOURS));
         if (expired) {
             result.put("expired", true);
             return result;
         }
-        result.put("expired",     false);
+        
+        result.put("expired",      false);
+        result.put("hasSelection", true);
         result.put("chooserId",   loc.getChooserId());
         result.put("name",        loc.getName()    != null ? loc.getName()    : "");
         result.put("address",     loc.getAddress() != null ? loc.getAddress() : "");
@@ -70,14 +78,11 @@ public class MeetLocationService {
         MeetLocation loc = repo.findByMatchId(matchId);
         Map<String, Object> result = new HashMap<>();
         if (loc == null) {
-            // No location selected yet — not expired, just waiting
             result.put("expired", false);
             result.put("mutual", false);
             return result;
         }
 
-        // SOS/emergency cancellation — surface this immediately so the other
-        // user's poll loop bails out to home, regardless of acceptance state.
         if (loc.isCancelled()) {
             result.put("expired", true);
             result.put("mutual", false);
@@ -106,11 +111,6 @@ public class MeetLocationService {
         if (existing != null) repo.delete(existing);
     }
 
-    // Used for SOS/emergency cancellation. Marks the row cancelled instead of
-    // deleting it outright, so a concurrent checkMutual/getLocation poll from
-    // the other user (which may be mid-flight) reliably observes the
-    // cancellation rather than racing against a deleted row that just looks
-    // like "no location chosen yet."
     public void cancelLocation(int matchId) {
         MeetLocation existing = repo.findByMatchId(matchId);
         if (existing != null) {
