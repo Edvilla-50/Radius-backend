@@ -27,11 +27,16 @@ public class MeetService {
     @Autowired
     private OverpassPlacesService overpassPlacesService;
 
+    // matchId → cached suggestions (SYNC FIX)
+    private final Map<Integer, Map<String, Object>> suggestionsCache = new HashMap<>();
+
     // ---------------- CREATE REQUEST ----------------
 
     public MeetRequest createRequest(int requesterId, int receiverId) {
+
         Optional<MeetRequest> existingAB =
                 repo.findByRequesterIdAndReceiverId(requesterId, receiverId);
+
         Optional<MeetRequest> existingBA =
                 repo.findByRequesterIdAndReceiverId(receiverId, requesterId);
 
@@ -64,12 +69,14 @@ public class MeetService {
     // ---------------- RESPOND ----------------
 
     public MeetRequest respond(int requestId, boolean accepted) {
+
         MeetRequest req = repo.findById(requestId).orElseThrow();
 
         req.setStatus(accepted ? "ACCEPTED" : "DECLINED");
         repo.save(req);
 
         if (accepted) {
+
             Optional<MeetRequest> reverse =
                     repo.findByRequesterIdAndReceiverId(
                             req.getReceiverId(),
@@ -77,6 +84,7 @@ public class MeetService {
                     );
 
             if (reverse.isEmpty()) {
+
                 MeetRequest rev =
                         new MeetRequest(
                                 req.getReceiverId(),
@@ -87,6 +95,7 @@ public class MeetService {
                 MeetRequest saved = repo.save(rev);
                 saved.setMatchId(req.getMatchId());
                 repo.save(saved);
+
             } else {
                 reverse.get().setStatus("ACCEPTED");
                 repo.save(reverse.get());
@@ -96,36 +105,7 @@ public class MeetService {
         return req;
     }
 
-    @org.springframework.transaction.annotation.Transactional
-    public void clearMeetLocation(int matchId) {
-        repo.terminateMatchSession(matchId);
-        repo.flush();
-    }
-
-    // ---------------- STATUS ----------------
-
-    public String getMatchStatus(int matchId) {
-        List<MeetRequest> requests = repo.findByMatchId(matchId);
-
-        if (requests.isEmpty()) return "NOT_FOUND";
-
-        return requests.get(0).getStatus();
-    }
-
-    public boolean isMutual(int a, int b) {
-        Optional<MeetRequest> reqAB = repo.findByRequesterIdAndReceiverId(a, b);
-        Optional<MeetRequest> reqBA = repo.findByRequesterIdAndReceiverId(b, a);
-
-        boolean aAccepted = reqAB.isPresent() &&
-                "ACCEPTED".equals(reqAB.get().getStatus());
-
-        boolean bAccepted = reqBA.isPresent() &&
-                "ACCEPTED".equals(reqBA.get().getStatus());
-
-        return aAccepted && bAccepted;
-    }
-
-    // ---------------- MUTUAL LOOKUP ----------------
+    // ---------------- MUTUAL FIND ----------------
 
     public Map<String, Integer> findMutualForUser(int userId) {
 
@@ -172,23 +152,105 @@ public class MeetService {
         return null;
     }
 
+    // ---------------- IS MUTUAL (FIXED) ----------------
+
+    public boolean isMutual(int a, int b) {
+
+        Optional<MeetRequest> reqAB =
+                repo.findByRequesterIdAndReceiverId(a, b);
+
+        Optional<MeetRequest> reqBA =
+                repo.findByRequesterIdAndReceiverId(b, a);
+
+        boolean aAccepted = reqAB.isPresent()
+                && "ACCEPTED".equals(reqAB.get().getStatus());
+
+        boolean bAccepted = reqBA.isPresent()
+                && "ACCEPTED".equals(reqBA.get().getStatus());
+
+        return aAccepted && bAccepted;
+    }
+
+    // ---------------- CLEAR LOCATION (FIXED) ----------------
+
+    @org.springframework.transaction.annotation.Transactional
+    public void clearMeetLocation(int matchId) {
+
+        List<MeetRequest> requests = repo.findByMatchId(matchId);
+
+        for (MeetRequest r : requests) {
+            r.setStatus("CANCELLED");
+            repo.save(r);
+        }
+
+        repo.flush();
+
+        suggestionsCache.remove(matchId);
+    }
+
+    // ---------------- MATCH STATUS ----------------
+
+    public String getMatchStatus(int matchId) {
+
+        List<MeetRequest> requests = repo.findByMatchId(matchId);
+
+        if (requests.isEmpty()) return "NOT_FOUND";
+
+        return requests.get(0).getStatus();
+    }
+
     // ---------------- MIDPOINT ----------------
 
     public Map<String, Double> getMidpoint(int userA, int userB) {
+
         User a = userRepo.findById((long) userA).orElseThrow();
         User b = userRepo.findById((long) userB).orElseThrow();
 
-        double midLat = (a.getLat() + b.getLat()) / 2.0;
-        double midLon = (a.getLon() + b.getLon()) / 2.0;
-
         Map<String, Double> map = new HashMap<>();
-        map.put("lat", midLat);
-        map.put("lon", midLon);
+        map.put("lat", (a.getLat() + b.getLat()) / 2.0);
+        map.put("lon", (a.getLon() + b.getLon()) / 2.0);
 
         return map;
     }
 
-    // ---------------- OVERPASS REPLACEMENT ----------------
+    // ---------------- SYNCED SUGGESTIONS ----------------
+
+    public synchronized Map<String, Object> getSuggestionsForMatch(
+            int userA,
+            int userB,
+            int matchId
+    ) {
+
+        if (suggestionsCache.containsKey(matchId)) {
+            return suggestionsCache.get(matchId);
+        }
+
+        Map<String, Double> mid = getMidpoint(userA, userB);
+        double lat = mid.get("lat");
+        double lon = mid.get("lon");
+
+        List<String> shared = getSharedCategories(userA, userB);
+
+        Map<String, Object> result;
+
+        if (shared.isEmpty()) {
+            result = getSuggestions(lat, lon);
+        } else {
+            String query = mapCategoryToQuery(shared.get(0));
+
+            result = getSuggestionsByQuery(lat, lon, query);
+
+            List results = (List) result.get("results");
+            if (results == null || results.isEmpty()) {
+                result = getSuggestions(lat, lon);
+            }
+        }
+
+        suggestionsCache.put(matchId, result);
+        return result;
+    }
+
+    // ---------------- OVERPASS ----------------
 
     public Map<String, Object> getSuggestions(double lat, double lon) {
         SuggestionsResponse response =
@@ -200,10 +262,7 @@ public class MeetService {
     public Map<String, Object> getSuggestionsByQuery(double lat, double lon, String query) {
         SuggestionsResponse response =
                 overpassPlacesService.findPlacesForInterests(
-                        lat,
-                        lon,
-                        1500,
-                        List.of(query)
+                        lat, lon, 1500, List.of(query)
                 );
 
         return Map.of("results", response.results());
@@ -212,6 +271,7 @@ public class MeetService {
     // ---------------- INTERESTS ----------------
 
     public List<String> getSharedCategories(int userA, int userB) {
+
         User a = userRepo.findById((long) userA).orElseThrow();
         User b = userRepo.findById((long) userB).orElseThrow();
 
@@ -231,7 +291,31 @@ public class MeetService {
                 .toList();
     }
 
-    public Map<String, Object> getSuggestionsForUsers(int userA, int userB) {
+    // ---------------- CATEGORY MAP ----------------
+
+    private String mapCategoryToQuery(String category) {
+
+        return switch (category.toLowerCase()) {
+            case "coffee" -> "coffee";
+            case "food", "restaurant", "foodie" -> "restaurant";
+            case "gym", "fitness" -> "gym";
+            case "park", "hiking", "outdoors" -> "park";
+            case "library", "studying" -> "library";
+            case "bookstore", "anime" -> "bookstore";
+            case "music", "concert" -> "music";
+            case "cinema", "movies" -> "movies";
+            case "bowling" -> "bowling";
+            default -> "restaurant";
+        };
+    }
+        public synchronized Map<String, Object> getOrCreateSuggestions(
+            int userA,
+            int userB,
+            int matchId
+    ) {
+        if (suggestionsCache.containsKey(matchId)) {
+            return suggestionsCache.get(matchId);
+        }
 
         Map<String, Double> mid = getMidpoint(userA, userB);
         double lat = mid.get("lat");
@@ -239,38 +323,21 @@ public class MeetService {
 
         List<String> shared = getSharedCategories(userA, userB);
 
+        Map<String, Object> result;
+
         if (shared.isEmpty()) {
-            return getSuggestions(lat, lon);
+            result = getSuggestions(lat, lon);
+        } else {
+            String query = mapCategoryToQuery(shared.get(0));
+            result = getSuggestionsByQuery(lat, lon, query);
+
+            List results = (List) result.get("results");
+            if (results == null || results.isEmpty()) {
+                result = getSuggestions(lat, lon);
+            }
         }
 
-        String query = mapCategoryToQuery(shared.get(0));
-
-        Map<String, Object> interestResults =
-                getSuggestionsByQuery(lat, lon, query);
-
-        List results = (List) interestResults.get("results");
-
-        if (results == null || results.isEmpty()) {
-            return getSuggestions(lat, lon);
-        }
-
-        return interestResults;
-    }
-
-    // ---------------- CATEGORY MAP (UNCHANGED LOGIC) ----------------
-
-    private String mapCategoryToQuery(String category) {
-        return switch (category.toLowerCase()) {
-            case "coffee" -> "coffeetasting";
-            case "food", "restaurant", "foodie" -> "foodtours";
-            case "gym", "fitness" -> "gym";
-            case "park", "hiking", "outdoors" -> "running";
-            case "library", "studying" -> "reading";
-            case "bookstore", "anime" -> "reading";
-            case "music", "concert" -> "livemusic";
-            case "cinema", "movies" -> "movienights";
-            case "bowling" -> "bowling";
-            default -> "foodtours";
-        };
+        suggestionsCache.put(matchId, result);
+        return result;
     }
 }

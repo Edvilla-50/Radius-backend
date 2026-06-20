@@ -53,7 +53,23 @@ class ApiService {
       throw Exception("Failed to update location");
     }
   }
+    static Future<Map<String, dynamic>> getSyncedSuggestions(
+    int matchId,
+    int userA,
+    int userB,
+  ) async {
+    final url = Uri.parse(
+      "$baseUrl/match/meet/suggestions/sync/$matchId/$userA/$userB",
+    );
 
+    final res = await http.get(url);
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to fetch synced suggestions");
+    }
+
+    return jsonDecode(res.body);
+  }
   // ---------------------------
   // MATCHES
   // ---------------------------
@@ -218,19 +234,33 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  // ---------------------------
+    // ---------------------------
   // SUGGESTIONS / MIDPOINT
   // ---------------------------
+
   static Future<Map<String, dynamic>> getMidpoint(int a, int b) async {
     final res = await http.get(Uri.parse("$baseUrl/meet/midpoint/$a/$b"));
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to fetch midpoint");
+    }
+
     return jsonDecode(res.body);
   }
 
-  static Future<dynamic> getSuggestions(double lat, double lon) async {
-    final res = await http.get(Uri.parse("$baseUrl/match/meet/suggestions/$lat/$lon"));
+  // 🔥 THIS is the ONLY correct shared suggestions endpoint
+  // (optional legacy fallback if you still use it somewhere)
+  static Future<Map<String, dynamic>> getSuggestions(double lat, double lon) async {
+    final res = await http.get(
+      Uri.parse("$baseUrl/match/meet/suggestions/$lat/$lon"),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to fetch suggestions");
+    }
+
     return jsonDecode(res.body);
   }
-
   // ---------------------------
   // MESSAGING (MATCH-BASED)
   // ---------------------------

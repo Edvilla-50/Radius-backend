@@ -60,13 +60,19 @@ public class MatchController {
         return meetService.getSuggestions(mid.get("lat"), mid.get("lon"));
     }
 
-    @GetMapping("/meet/suggestions/interests/{a}/{b}")
-    public ResponseEntity<?> suggestionsByInterest(@PathVariable int a, @PathVariable int b) {
+    @GetMapping("/meet/suggestions/interests/{a}/{b}/{matchId}")
+    public ResponseEntity<?> suggestionsByInterest(
+            @PathVariable int a,
+            @PathVariable int b,
+            @PathVariable int matchId) {
+
         try {
-            return ResponseEntity.ok(meetService.getSuggestionsForUsers(a, b));
+            return ResponseEntity.ok(
+                    meetService.getSuggestionsForMatch(a, b, matchId)
+            );
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -118,5 +124,13 @@ public class MatchController {
             "expired", isCancelled,
             "sosTriggered", isCancelled
         ));
+    }
+    @GetMapping("/meet/suggestions/sync/{matchId}/{a}/{b}")
+    public Map<String, Object> syncedSuggestions(
+            @PathVariable int matchId,
+            @PathVariable int a,
+            @PathVariable int b
+    ) {
+    return meetService.getOrCreateSuggestions(a, b, matchId);
     }
 }
