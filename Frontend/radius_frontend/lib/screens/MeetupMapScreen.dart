@@ -136,22 +136,32 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
 
         try {
           final res = await ApiService.checkMutual(widget.matchId);
-          if (res == null) return;
+          
+          // Fallback: If a user clears the meeting room entirely, the result could be null
+          if (res == null) {
+            debugPrint("⚠️ Match record missing from server. Routing home.");
+            _exitToHomeUnconditionally();
+            return;
+          }
 
           _pollCount++;
           if (_pollCount < 3) return;
 
+          // Extract values tied to your updated MeetRequest Java properties
           final bool isSosTriggered = res["sosTriggered"] == true;
+          final bool isExpired = res["expired"] == true;
 
-          debugPrint("📊 POLLED SOS STATUS -> isSosTriggered: $isSosTriggered");
+          debugPrint("📊 POLLED STATUS -> isSosTriggered: $isSosTriggered | isExpired: $isExpired");
 
-          // Active background exit tracking for User B when User A cancels the meet via SOS
-          if (isSosTriggered) {
-            debugPrint("⚠️ Remote SOS detected. Cleaning up and exiting to home.");
+          // Active background exit validation loop for both connected clients
+          if (isSosTriggered || isExpired) {
+            debugPrint("⚠️ Match constraint invalidated (SOS/Expired). Cleaning up and exiting.");
             _exitToHomeUnconditionally();
           }
         } catch (e) {
           debugPrint("poll error: $e");
+          // Handle network dropouts or database 404/500 errors safely by routing home
+          _exitToHomeUnconditionally();
         }
       });
     } catch (e) {
@@ -227,7 +237,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           widget.userId,
           pos.latitude,
           pos.longitude,
-          );
+        );
       });
     } catch (e) {
       debugPrint("_startMyLocation error: $e");

@@ -17,16 +17,21 @@ public class MeetLocationService {
     }
 
     public MeetLocation chooseLocation(int matchId, int chooserId,
-            String locationId, String name,
-            String address, Double lat, Double lon) {
-        MeetLocation existing = repo.findByMatchId(matchId);
-        if (existing != null) repo.delete(existing);
-        MeetLocation loc = new MeetLocation(matchId, chooserId, locationId,
-                name, address, lat, lon);
-        loc.setAcceptedByA(true);
-        loc.setAcceptedByB(false);
-        return repo.save(loc);
+                                   String locationId, String name,
+                                   String address, Double lat, Double lon) {
+    MeetLocation existing = repo.findByMatchId(matchId);
+    if (existing != null) {
+        repo.delete(existing);
+        repo.flush(); // 🌟 Forces the database to drop the old cancelled row immediately
     }
+    
+    MeetLocation loc = new MeetLocation(matchId, chooserId, locationId,
+            name, address, lat, lon);
+    loc.setAcceptedByA(true);
+    loc.setAcceptedByB(false);
+    loc.setCancelled(false); // 🌟 Guarantees the fresh row starts as false
+    return repo.save(loc);
+}
 
     public Map<String, Object> getLocation(int matchId) {
         MeetLocation loc = repo.findByMatchId(matchId);
