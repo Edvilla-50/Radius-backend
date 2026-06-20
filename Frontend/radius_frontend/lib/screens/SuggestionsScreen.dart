@@ -127,16 +127,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     setState(() => _navigated = true);
     _cleanUpTimers();
 
-    if (!_iAmChooser) {
-      Future.delayed(const Duration(seconds: 5), () async {
-        try {
-          await ApiService.clearMeetLocation(widget.matchId);
-        } catch (e) {
-          debugPrint("clearMeetLocation error: $e");
-        }
-      });
-    }
-
     if (!mounted) return;
 
     Navigator.pushReplacement(
