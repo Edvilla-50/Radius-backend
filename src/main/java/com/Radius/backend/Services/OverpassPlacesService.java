@@ -19,8 +19,6 @@ import java.util.Map;
 public class OverpassPlacesService {
 
     private static final String OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-
-    // Tune these to whatever categories make sense for Radius meetups
     private static final String AMENITY_TAGS = "cafe|restaurant|bar|pub|fast_food|library";
     private static final String LEISURE_TAGS = "park|fitness_centre|sports_centre";
 
@@ -31,12 +29,7 @@ public class OverpassPlacesService {
     }
 
     public SuggestionsResponse findPlacesForInterests(double lat, double lon, int radius, List<String> sharedInterests) {
-            System.out.println("=== OVERPASS DEBUG ===");
-        System.out.println("Lat: " + lat);
-        System.out.println("Lon: " + lon);
-        System.out.println("Radius: " + radius);
-        System.out.println("Shared interests: " + sharedInterests);
-            List<Map<String, String>> tagFilters = InterestTagMapper.resolveTagFilters(sharedInterests);
+        List<Map<String, String>> tagFilters = InterestTagMapper.resolveTagFilters(sharedInterests);
 
         List<SuggestedPlace> places = List.of();
         if (!tagFilters.isEmpty()) {
@@ -64,30 +57,32 @@ public class OverpassPlacesService {
         return restTemplate.postForObject(OVERPASS_URL, request, OverpassResponse.class);
     }
 
+    // FIX: Using nwr (nodes, ways, relations) and out body center;
     private String buildInterestQuery(double lat, double lon, int radius, List<Map<String, String>> tagFilters) {
         StringBuilder qb = new StringBuilder();
         qb.append("[out:json][timeout:25];\n(\n");
 
         for (Map<String, String> filter : tagFilters) {
-            qb.append("  node");
+            qb.append("  nwr"); 
             for (Map.Entry<String, String> entry : filter.entrySet()) {
                 qb.append(String.format("[\"%s\"=\"%s\"]", entry.getKey(), entry.getValue()));
             }
             qb.append(String.format("(around:%d,%f,%f);%n", radius, lat, lon));
         }
 
-        qb.append(");\nout body;\n");
+        qb.append(");\nout body center;\n"); 
         return qb.toString();
     }
 
+    // FIX: Switched elements from node to nwr and appended center calculation
     private String buildFallbackQuery(double lat, double lon, int radius) {
         return String.format("""
                 [out:json][timeout:25];
                 (
-                  node["amenity"~"%s"](around:%d,%f,%f);
-                  node["leisure"~"%s"](around:%d,%f,%f);
+                  nwr["amenity"~"%s"](around:%d,%f,%f);
+                  nwr["leisure"~"%s"](around:%d,%f,%f);
                 );
-                out body;
+                out body center;
                 """,
                 AMENITY_TAGS, radius, lat, lon,
                 LEISURE_TAGS, radius, lat, lon);
@@ -103,15 +98,19 @@ public class OverpassPlacesService {
             Map<String, String> tags = element.tags();
             String name = tags == null ? null : tags.get("name");
             if (name == null || name.equalsIgnoreCase("unbranded")) {
-                continue; // skip unnamed nodes and OSM's "unbranded" placeholder
+                continue; 
             }
+
+            // Fallback coordinate collection if structural way element center properties are populated
+            double placeLat = element.lat() != 0.0 ? element.lat() : (tags.containsKey("lat") ? Double.parseDouble(tags.get("lat")) : 0.0);
+            double placeLon = element.lon() != 0.0 ? element.lon() : (tags.containsKey("lon") ? Double.parseDouble(tags.get("lon")) : 0.0);
 
             places.add(new SuggestedPlace(
                     String.valueOf(element.id()),
                     name,
                     new PlaceLocation(buildFormattedAddress(tags)),
-                    element.lat(),
-                    element.lon()
+                    placeLat,
+                    placeLon
             ));
         }
 
@@ -119,7 +118,7 @@ public class OverpassPlacesService {
     }
 
     private String buildFormattedAddress(Map<String, String> tags) {
-        if (tags == null) return null;
+        if (tags == null) return "Address unavailable";
 
         String houseNumber = tags.get("addr:housenumber");
         String street = tags.get("addr:street");
@@ -141,6 +140,6 @@ public class OverpassPlacesService {
             sb.append(state);
         }
 
-        return sb.length() > 0 ? sb.toString() : null;
+        return sb.length() > 0 ? sb.toString() : "Address unavailable";
     }
 }

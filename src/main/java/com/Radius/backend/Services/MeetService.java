@@ -215,12 +215,7 @@ public class MeetService {
 
     // ---------------- SYNCED SUGGESTIONS ----------------
 
-    public synchronized Map<String, Object> getSuggestionsForMatch(
-            int userA,
-            int userB,
-            int matchId
-    ) {
-
+    public synchronized Map<String, Object> getSuggestionsForMatch(int userA, int userB, int matchId) {
         if (suggestionsCache.containsKey(matchId)) {
             return suggestionsCache.get(matchId);
         }
@@ -230,14 +225,12 @@ public class MeetService {
         double lon = mid.get("lon");
 
         List<String> shared = getSharedCategories(userA, userB);
-
         Map<String, Object> result;
 
         if (shared.isEmpty()) {
             result = getSuggestions(lat, lon);
         } else {
             String query = mapCategoryToQuery(shared.get(0));
-
             result = getSuggestionsByQuery(lat, lon, query);
 
             List results = (List) result.get("results");
@@ -252,26 +245,19 @@ public class MeetService {
 
     // ---------------- OVERPASS ----------------
 
-    public Map<String, Object> getSuggestions(double lat, double lon) {
-        SuggestionsResponse response =
-                overpassPlacesService.findNearbyPlaces(lat, lon, 1500);
-
+   public Map<String, Object> getSuggestions(double lat, double lon) {
+        SuggestionsResponse response = overpassPlacesService.findNearbyPlaces(lat, lon, 1500);
         return Map.of("results", response.results());
     }
 
     public Map<String, Object> getSuggestionsByQuery(double lat, double lon, String query) {
-        SuggestionsResponse response =
-                overpassPlacesService.findPlacesForInterests(
-                        lat, lon, 1500, List.of(query)
-                );
-
+        SuggestionsResponse response = overpassPlacesService.findPlacesForInterests(lat, lon, 1500, List.of(query));
         return Map.of("results", response.results());
     }
 
     // ---------------- INTERESTS ----------------
 
     public List<String> getSharedCategories(int userA, int userB) {
-
         User a = userRepo.findById((long) userA).orElseThrow();
         User b = userRepo.findById((long) userB).orElseThrow();
 
@@ -294,50 +280,20 @@ public class MeetService {
     // ---------------- CATEGORY MAP ----------------
 
     private String mapCategoryToQuery(String category) {
-
         return switch (category.toLowerCase()) {
-            case "coffee" -> "coffee";
-            case "food", "restaurant", "foodie" -> "restaurant";
+            case "coffee", "coffeetasting" -> "coffeetasting";
+            case "food", "restaurant", "foodie" -> "foodtours";
             case "gym", "fitness" -> "gym";
-            case "park", "hiking", "outdoors" -> "park";
-            case "library", "studying" -> "library";
-            case "bookstore", "anime" -> "bookstore";
-            case "music", "concert" -> "music";
-            case "cinema", "movies" -> "movies";
+            case "park", "hiking", "outdoors" -> "hiking";
+            case "library", "studying" -> "reading";
+            case "bookstore", "anime", "boardgames" -> "boardgames";
+            case "music", "concert" -> "concert";
+            case "cinema", "movies" -> "movienights";
             case "bowling" -> "bowling";
-            default -> "restaurant";
+            default -> "restaurant"; 
         };
     }
-        public synchronized Map<String, Object> getOrCreateSuggestions(
-            int userA,
-            int userB,
-            int matchId
-    ) {
-        if (suggestionsCache.containsKey(matchId)) {
-            return suggestionsCache.get(matchId);
-        }
-
-        Map<String, Double> mid = getMidpoint(userA, userB);
-        double lat = mid.get("lat");
-        double lon = mid.get("lon");
-
-        List<String> shared = getSharedCategories(userA, userB);
-
-        Map<String, Object> result;
-
-        if (shared.isEmpty()) {
-            result = getSuggestions(lat, lon);
-        } else {
-            String query = mapCategoryToQuery(shared.get(0));
-            result = getSuggestionsByQuery(lat, lon, query);
-
-            List results = (List) result.get("results");
-            if (results == null || results.isEmpty()) {
-                result = getSuggestions(lat, lon);
-            }
-        }
-
-        suggestionsCache.put(matchId, result);
-        return result;
+    public synchronized Map<String, Object> getOrCreateSuggestions(int userA, int userB, int matchId) {
+        return getSuggestionsForMatch(userA, userB, matchId);
     }
 }

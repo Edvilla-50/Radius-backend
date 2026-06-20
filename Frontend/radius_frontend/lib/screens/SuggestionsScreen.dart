@@ -368,7 +368,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     );
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     if (_loading || userId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -418,8 +418,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                     itemCount: results.length,
                     itemBuilder: (context, index) {
                       final place = results[index];
-                      final fsqId = (place["fsq_place_id"] ?? "").toString();
-                      if (fsqId.isEmpty) return const SizedBox.shrink();
+                      
+                      // FIX: Safe check across potential camelCase/snake_case serialization variants
+                      final fsqId = (place["fsq_place_id"] ?? place["fsqPlaceId"] ?? "").toString();
+                      if (fsqId.isEmpty) {
+                        debugPrint("⚠️ JSON Structure Warning: Skipped item missing ID fields: $place");
+                        return const SizedBox.shrink();
+                      }
 
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
