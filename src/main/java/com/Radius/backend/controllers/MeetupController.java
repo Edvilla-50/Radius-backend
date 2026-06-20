@@ -1,24 +1,24 @@
 package com.Radius.backend.controllers;
 
-import com.Radius.backend.Services.FourSquareService;
+import com.Radius.backend.Services.OverpassPlacesService;
+import com.Radius.backend.dto.SuggestionsResponse;
 import org.springframework.web.bind.annotation.*;
-import java.util.*;
 
 @RestController
 @RequestMapping("/meetup")
 public class MeetupController {
 
-    private final FourSquareService foursquareService;
+    private final OverpassPlacesService overpassService;
 
-    public MeetupController(FourSquareService foursquareService){
-        this.foursquareService = foursquareService;
+    public MeetupController(OverpassPlacesService overpassService) {
+        this.overpassService = overpassService;
     }
 
     @GetMapping("/places")
-    public List<Map<String, Object>> getNearbyPlaces(
-        @RequestParam double lat,
-        @RequestParam double lon
-    ){
-        return foursquareService.getNearbyPlaces(lat, lon);
+    public SuggestionsResponse getNearbyPlaces(
+            @RequestParam double lat,
+            @RequestParam double lon
+    ) {
+        return overpassService.findNearbyPlaces(lat, lon, 1500);
     }
 }

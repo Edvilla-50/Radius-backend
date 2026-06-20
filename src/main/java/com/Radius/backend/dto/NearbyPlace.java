@@ -5,6 +5,6 @@ public record NearbyPlace (
     String name,
     String category,
     double lat,
-    double lom,
+    double lon,
     String openingHours
  ) {}
