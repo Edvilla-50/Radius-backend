@@ -98,17 +98,25 @@ public class OverpassPlacesService {
             if (name == null || name.equalsIgnoreCase("unbranded")) {
                 continue; 
             }
-
             double placeLat = 0.0;
             double placeLon = 0.0;
 
-            // FIX: Explicitly handle null properties safely to prevent NullPointer unboxing exceptions
+            // 1. Check top-level elements first (Safely handles Double object wrappers)
             if (element.lat() != null && !element.lat().equals(0.0)) {
                 placeLat = element.lat();
                 placeLon = element.lon();
-            } else if (element.center() != null && element.center().lat() != null) {
-                placeLat = element.center().lat();
-                placeLon = element.center().lon();
+            } 
+            // 2. Fall back to the nested center block
+            else if (element.center() != null) {
+                // By pulling the values into temporary variables first, 
+                // we handle both primitive double and Double object scenarios safely.
+                Object rawLat = element.center().lat();
+                Object rawLon = element.center().lon();
+
+                if (rawLat != null && rawLon != null) {
+                    placeLat = ((Number) rawLat).doubleValue();
+                    placeLon = ((Number) rawLon).doubleValue();
+                }
             }
 
             // Drop values that lack proper coordinates to protect the Flutter Map UI
