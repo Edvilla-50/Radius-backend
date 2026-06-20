@@ -11,12 +11,15 @@ class AppState {
   int? activeMatchId;
 
   void triggerSos() {
+    if (sosTriggered.value) return; // Prevent double execution triggers
     justTriggeredSos = true;
     isHandlingSosCleanup = true;
     sosTriggered.value = true;
   }
 
   void resetSos() {
+    justTriggeredSos = false;
+    isHandlingSosCleanup = false;
     sosTriggered.value = false;
   }
 

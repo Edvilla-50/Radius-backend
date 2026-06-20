@@ -14,6 +14,10 @@ public class MeetRequest {
     private int receiverId;
     private String status;
     private int matchId; // links to message table's match_id
+    
+    // 🌟 ADDED: Tracking fields for map validation and emergency loops
+    private boolean sosTriggered;
+    private boolean expired;
 
     public MeetRequest() {}
 
@@ -21,6 +25,8 @@ public class MeetRequest {
         this.requesterId = requesterId;
         this.receiverId = receiverId;
         this.status = status;
+        this.sosTriggered = false; // default to safe
+        this.expired = false;      // default to active
     }
 
     public int getId() {
@@ -54,7 +60,25 @@ public class MeetRequest {
     public int getMatchId() {
         return matchId;
     }
+    
     public void setMatchId(int matchId) {
         this.matchId = matchId;
+    }
+
+    // 🌟 ADDED: Getters and Setters for the new tracking fields
+    public boolean isSosTriggered() {
+        return sosTriggered;
+    }
+
+    public void setSosTriggered(boolean sosTriggered) {
+        this.sosTriggered = sosTriggered;
+    }
+
+    public boolean isExpired() {
+        return expired;
+    }
+
+    public void setExpired(boolean expired) {
+        this.expired = expired;
     }
 }

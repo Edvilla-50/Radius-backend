@@ -44,8 +44,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
 
   bool _loading = true;
   bool _navigated = false;
-
-  // 🔥 FIX: stability guards
   int _pollCount = 0;
 
   @override
@@ -141,14 +139,15 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           if (res == null) return;
 
           _pollCount++;
-
-          // 🔥 FIX: ignore unstable early backend responses
           if (_pollCount < 3) return;
 
-          final expired = res["expired"] == true;
-          final sos = res["sosTriggered"] == true;
+          final bool isSosTriggered = res["sosTriggered"] == true;
 
-          if (expired || sos) {
+          debugPrint("📊 POLLED SOS STATUS -> isSosTriggered: $isSosTriggered");
+
+          // Active background exit tracking for User B when User A cancels the meet via SOS
+          if (isSosTriggered) {
+            debugPrint("⚠️ Remote SOS detected. Cleaning up and exiting to home.");
             _exitToHomeUnconditionally();
           }
         } catch (e) {
@@ -191,49 +190,49 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
   }
 
   Future<void> _startMyLocation() async {
-  try {
-    await Geolocator.requestPermission();
+    try {
+      await Geolocator.requestPermission();
 
-    final position = await Geolocator
-        .getCurrentPosition()
-        .timeout(const Duration(seconds: 10));
+      final position = await Geolocator
+          .getCurrentPosition()
+          .timeout(const Duration(seconds: 10));
 
-    if (mounted && !_navigated) {
-      setState(() {
-        _myLocation = LatLng(position.latitude, position.longitude);
-      });
-    }
-
-    await ApiService.updateLocation(
-      widget.userId,
-      position.latitude,
-      position.longitude,
-    );
-
-    _locationStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    ).listen((pos) async {
-      if (_navigated) return;
-
-      if (mounted) {
+      if (mounted && !_navigated) {
         setState(() {
-          _myLocation = LatLng(pos.latitude, pos.longitude);
+          _myLocation = LatLng(position.latitude, position.longitude);
         });
       }
 
       await ApiService.updateLocation(
         widget.userId,
-        pos.latitude,
-        pos.longitude,
+        position.latitude,
+        position.longitude,
       );
-    });
-  } catch (e) {
-    debugPrint("_startMyLocation error: $e");
+
+      _locationStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        ),
+      ).listen((pos) async {
+        if (_navigated) return;
+
+        if (mounted) {
+          setState(() {
+            _myLocation = LatLng(pos.latitude, pos.longitude);
+          });
+        }
+
+        await ApiService.updateLocation(
+          widget.userId,
+          pos.latitude,
+          pos.longitude,
+          );
+      });
+    } catch (e) {
+      debugPrint("_startMyLocation error: $e");
+    }
   }
-}
 
   Future<void> _fetchOtherLocation() async {
     try {
