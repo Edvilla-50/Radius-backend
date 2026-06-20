@@ -31,7 +31,12 @@ public class OverpassPlacesService {
     }
 
     public SuggestionsResponse findPlacesForInterests(double lat, double lon, int radius, List<String> sharedInterests) {
-        List<Map<String, String>> tagFilters = InterestTagMapper.resolveTagFilters(sharedInterests);
+            System.out.println("=== OVERPASS DEBUG ===");
+        System.out.println("Lat: " + lat);
+        System.out.println("Lon: " + lon);
+        System.out.println("Radius: " + radius);
+        System.out.println("Shared interests: " + sharedInterests);
+            List<Map<String, String>> tagFilters = InterestTagMapper.resolveTagFilters(sharedInterests);
 
         List<SuggestedPlace> places = List.of();
         if (!tagFilters.isEmpty()) {
