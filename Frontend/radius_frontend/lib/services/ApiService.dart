@@ -434,4 +434,22 @@ class ApiService {
       return {"mutual": false, "expired": false, "sosTriggered": false};
     }
   }
+  static Future<void> reportUser(int reporterId, int reportedUserId, String reason, String details) async {
+    final url = Uri.parse("$baseUrl/reports/submit");
+
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "reporterId": reporterId,
+        "reportedUserId": reportedUserId,
+        "reason": reason,
+        "details": details,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to submit report");
+    }
+  }
 }
