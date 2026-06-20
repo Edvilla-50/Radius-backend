@@ -80,36 +80,41 @@ public class MeetLocationService {
     }
 
     public Map<String, Object> checkMutual(int matchId) {
-        MeetLocation loc = repo.findByMatchId(matchId);
-        Map<String, Object> result = new HashMap<>();
-        if (loc == null) {
-            result.put("expired", false);
-            result.put("mutual", false);
-            return result;
-        }
-
-        if (loc.isCancelled()) {
-            result.put("expired", true);
-            result.put("mutual", false);
-            result.put("sosTriggered", true);
-            return result;
-        }
-
-        boolean expired = loc.getCreatedAt().isBefore(
-                Instant.now().minus(1, ChronoUnit.HOURS));
-        if (expired) {
-            result.put("expired", true);
-            return result;
-        }
-        boolean mutual = loc.isAcceptedByA() && loc.isAcceptedByB();
-        result.put("expired",  false);
-        result.put("mutual",   mutual);
-        result.put("name",     loc.getName()    != null ? loc.getName()    : "");
-        result.put("address",  loc.getAddress() != null ? loc.getAddress() : "");
-        result.put("lat",      loc.getLat());
-        result.put("lon",      loc.getLon());
+    MeetLocation loc = repo.findByMatchId(matchId);
+    Map<String, Object> result = new HashMap<>();
+    if (loc == null) {
+        result.put("expired", false);
+        result.put("mutual", false);
+        result.put("sosTriggered", false);
         return result;
     }
+
+    // Change this block to check if it's truly an active cancellation or stale data
+    if (loc.isCancelled()) {
+        result.put("expired", true);
+        result.put("mutual", false);
+        result.put("sosTriggered", true);
+        return result;
+    }
+
+    boolean expired = loc.getCreatedAt().isBefore(Instant.now().minus(1, ChronoUnit.HOURS));
+    if (expired) {
+        result.put("expired", true);
+        result.put("mutual", false);
+        result.put("sosTriggered", false);
+        return result;
+    }
+
+    boolean mutual = loc.isAcceptedByA() && loc.isAcceptedByB();
+    result.put("expired", false);
+    result.put("sosTriggered", false); // 🌟 Explicitly guarantee false here!
+    result.put("mutual", mutual);
+    result.put("name", loc.getName() != null ? loc.getName() : "");
+    result.put("address", loc.getAddress() != null ? loc.getAddress() : "");
+    result.put("lat", loc.getLat());
+    result.put("lon", loc.getLon());
+    return result;
+}
 
     public void clearLocation(int matchId) {
         MeetLocation existing = repo.findByMatchId(matchId);
