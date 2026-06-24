@@ -452,4 +452,14 @@ class ApiService {
       throw Exception("Failed to submit report");
     }
   }
+  static Future<void> deleteAccount(int userId) async {
+    final res = await http.delete(
+      Uri.parse("$baseUrl/user/$userId"),
+      headers: {"Content-Type": "application/json"},
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to delete account");
+    }
+  }
 }

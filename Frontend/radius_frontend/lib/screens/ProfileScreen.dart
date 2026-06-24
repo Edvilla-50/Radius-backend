@@ -17,6 +17,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _bio = '';
   String _quote = '';
   bool _saving = false;
+  bool _deletingAccount = false;
 
   String _generateHtml() {
     final templates = {
@@ -104,6 +105,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(builder: (context) => const LoginScreen()),
       (route) => false,
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    // First confirmation
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and all your data. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Continue',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // Second confirmation — makes it hard to do by accident
+    final finalConfirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Are you sure?'),
+        content: const Text(
+          'Your profile, matches, and all data will be permanently deleted. There is no way to recover your account after this.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Delete My Account',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (finalConfirm != true) return;
+
+    setState(() => _deletingAccount = true);
+
+    try {
+      await ApiService.deleteAccount(widget.userId);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete account: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
+    }
   }
 
   Widget _templateCard(String id, String label, Color color) {
@@ -236,6 +315,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               onChanged: (val) => setState(() => _quote = val),
             ),
+
+            // ── DELETE ACCOUNT ──────────────────────────────────────
+            const SizedBox(height: 40),
+            const Divider(),
+            const SizedBox(height: 16),
+            const Text(
+              'Danger Zone',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Deleting your account is permanent and cannot be undone.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: _deletingAccount
+                  ? const Center(child: CircularProgressIndicator(color: Colors.red))
+                  : OutlinedButton(
+                      onPressed: _deleteAccount,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        'Delete Account',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),

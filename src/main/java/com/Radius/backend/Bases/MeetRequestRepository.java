@@ -10,24 +10,14 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MeetRequestRepository extends JpaRepository<MeetRequest, Integer> {
-
     List<MeetRequest> findByReceiverIdAndStatus(int receiverId, String status);
-
     List<MeetRequest> findByRequesterIdAndStatus(int requesterId, String status);
-
     MeetRequest findFirstByReceiverIdAndStatus(int receiverId, String status);
-
     Optional<MeetRequest> findByRequesterIdAndReceiverId(int requesterId, int receiverId);
-
     List<MeetRequest> findByReceiverId(int receiverId);
-
-    
     List<MeetRequest> findByRequesterId(int requesterId);
-
-    // FIXES MEETSERVICE COMPILATION ERROR: Tells Spring Data to fetch rows by matchId
     List<MeetRequest> findByMatchId(int matchId);
 
-    // CRITICAL TERMINATION QUERY: Updates both records to CANCELLED instantly
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("UPDATE MeetRequest m SET m.status = 'CANCELLED' WHERE m.matchId = :matchId")
