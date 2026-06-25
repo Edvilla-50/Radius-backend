@@ -1,5 +1,6 @@
 package com.Radius.backend.Forumulas;
 import com.Radius.backend.Aspects.*;
+import com.Radius.backend.Bases.UserBlockRepository;
 import com.Radius.backend.Bases.UserRepository;
 import com.Radius.backend.Data_Structres.TraitStack.TraitPopResult;
 import com.Radius.backend.Entity.User;
@@ -10,41 +11,50 @@ public class GetInnocuous {
 
     Haversine hs = new Haversine();
     private final UserRepository RepoSearch;
-    public GetInnocuous(UserRepository RepoSearch){
+    private final UserBlockRepository blockRepo; 
+    public GetInnocuous(UserRepository RepoSearch, UserBlockRepository blockRepo){
         this.RepoSearch = RepoSearch;
+        this.blockRepo = blockRepo;
     }
 
-    public static double score(int position, int stackSize) {//sigmoid more like sigma am I right fellas?
+    public static double score(int position, int stackSize) {
         return (double)(stackSize - position) / stackSize;
     }
-    /**
- * Returns most compatibale user
-     * Higher score = more compatible
-     */
+
     public List <User> compatibility(User me) {
         if(me.isGhostMode()){
-            return new ArrayList<>();//if user is in ghost mode, return empty list
+            return new ArrayList<>();
         }
-        double lon = me.getLon();//get user current longitude
-        double lat = me.getLat();//get user current latitude
-        double pref = me.getPerferredDistance();//pref distance of user
-        double deltaLat = pref/69.00;//convert lon degrees to miles
-        double deltaLon = pref / (69 * Math.cos(Math.toRadians(lat)));//convert lat degree to miles
-        double MaxNorth = lat +deltaLat;//bound max distance north
-        double MaxEast = lon+deltaLon;//bound max distance east
-        double MaxWest = lon-deltaLon;//bound max distance west
-        double MaxSouth = lat-deltaLat;//bound max distance south
-        List<User> nearby = RepoSearch.findByLatBetweenAndLonBetween(MaxSouth,MaxNorth,MaxWest,MaxEast);//use JPA to make a SQL call with the pain of SQL, I love you so much vro <3
-        int len = me.getStackSize();
-        int[] arr = new int[len];
+        double lon = me.getLon();
+        double lat = me.getLat();
+        double pref = me.getPerferredDistance();
+        double deltaLat = pref/69.00;
+        double deltaLon = pref / (69 * Math.cos(Math.toRadians(lat)));
+        double MaxNorth = lat + deltaLat;
+        double MaxEast = lon + deltaLon;
+        double MaxWest = lon - deltaLon;
+        double MaxSouth = lat - deltaLat;
+        List<User> nearby = RepoSearch.findByLatBetweenAndLonBetween(MaxSouth, MaxNorth, MaxWest, MaxEast);
+
+        List<Long> blockedByMe = blockRepo.findByBlockerId(me.getId())
+            .stream().map(b -> b.getBlockedId()).toList();
+        List<Long> blockedMe = blockRepo.findByBlockedId(me.getId())
+            .stream().map(b -> b.getBlockerId()).toList();
+
         List<User> trueCan = new ArrayList<>();
-        for (int i = 0; i<nearby.size();i++){
-            double dist = 0.0;
-            dist = hs.haversine(me.getLat(),me.getLon(),nearby.get(i).getLat(),nearby.get(i).getLon());
-            if(dist<=me.getPerferredDistance() && !nearby.get(i).getId().equals(me.getId()) && !nearby.get(i).isGhostMode()){
-                trueCan.add(nearby.get(i));
+        for (int i = 0; i < nearby.size(); i++) {
+            User u = nearby.get(i);
+            double dist = hs.haversine(me.getLat(), me.getLon(), u.getLat(), u.getLon());
+            boolean withinRange = dist <= me.getPerferredDistance();
+            boolean notMe = !u.getId().equals(me.getId());
+            boolean notGhost = !u.isGhostMode();
+            boolean notBlocked = !blockedByMe.contains(u.getId()) && !blockedMe.contains(u.getId());
+
+            if (withinRange && notMe && notGhost && notBlocked) {
+                trueCan.add(u);
             }
         }
+
         me.pushAllIntrestsToStack();
         for (User u : trueCan) {
             u.pushAllIntrestsToStack();
@@ -54,14 +64,14 @@ public class GetInnocuous {
         sort(trueCan);
         System.out.println("User " + me.getName() + " interests loaded = " + me.getInterests().size());
         return trueCan;
-        
     }
-    public static void NRank(List<User> truecan, User me){//void since we pass by refrence
+
+    public static void NRank(List<User> truecan, User me){
         List<TraitPopResult> meTrait = new ArrayList<>();
-        int i=me.getStackSize();
-        int size = me.getStackSize();//it will change as we pop so we need it early on
-        while(i!=0){
-            meTrait.add(me.popOnStack());//metrait has all user traits from most important at front and least at back
+        int i = me.getStackSize();
+        int size = me.getStackSize();
+        while(i != 0){
+            meTrait.add(me.popOnStack());
             i--;
         }
         double maxScore = 0.0;
@@ -69,19 +79,19 @@ public class GetInnocuous {
             maxScore += score(x, size);
         }
         System.out.println("size=" + size + " maxScore=" + maxScore);
-        for(int u = 0; u<truecan.size();u++){
+        for(int u = 0; u < truecan.size(); u++){
             List<TraitPopResult> oppTrait = new ArrayList<>();
-            int t = truecan.get(u).getStackSize();//get canidate user stack size
-            int oppsize = t;//store opppttait stack before it is modified
-            while(t!=0){
+            int t = truecan.get(u).getStackSize();
+            int oppsize = t;
+            while(t != 0){
                 oppTrait.add(truecan.get(u).popOnStack());
                 t--;
             }
             double total = 0.0;
-            t=0;
-            while(t<size){
-                int t2=0;
-                while(t2<oppsize){
+            t = 0;
+            while(t < size){
+                int t2 = 0;
+                while(t2 < oppsize){
                     if(meTrait.get(t).trait().equals(oppTrait.get(t2).trait())){
                         truecan.get(u).setScore(score(oppTrait.get(t2).position(), oppsize));
                         total += score(t, size); 
@@ -92,18 +102,19 @@ public class GetInnocuous {
                 t++;
             }
             truecan.get(u).setScore(total / maxScore);
-       }
+        }
     }
+
     void sort(List<User> truecan){
         int n = truecan.size();
-        for(int i = 1; i< n; i++){
+        for(int i = 1; i < n; i++){
             User key = truecan.get(i);
-            int j = i-1;
+            int j = i - 1;
             while(j >= 0 && truecan.get(j).getScore() < key.getScore()){
-                truecan.set(j+1,truecan.get(j));
-                j=j-1; 
+                truecan.set(j+1, truecan.get(j));
+                j = j - 1; 
             }
-            truecan.set(j+1,key);
+            truecan.set(j+1, key);
         }
     }
 }

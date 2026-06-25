@@ -9,7 +9,7 @@ import '../services/ApiService.dart';
 import '../services/LocationService.dart';
 import 'ProfilePreviewScreen.dart';
 import 'SuggestionsScreen.dart';
-import 'OnboardingScreen.dart'; 
+import 'OnboardingScreen.dart';
 
 const String _spotifyPlaylistUrl = 'https://open.spotify.com/playlist/4mmKm7hFzxAn2XYtx4JqRS?si=6A0E9NdDSjaBp7pExHlXIw&pi=YsDnlnQNQAePF';
 const String _appleMusicPlaylistUrl = 'https://music.apple.com/us/playlist/the-radius-soundtrack/pl.u-jV899DNFDe543bD';
@@ -290,7 +290,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // FIX: Updated Matches Container layer using Material layout element
+          // Matches Container
           if (_matches.isNotEmpty)
             Positioned(
               top: 105,
@@ -299,10 +299,10 @@ class _MapScreenState extends State<MapScreen> {
               child: SizedBox(
                 height: 150,
                 child: Material(
-                  elevation: 2, // Gives the card overlay a slight floating shadow
+                  elevation: 2,
                   color: Colors.white.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(10),
-                  clipBehavior: Clip.antiAlias, // Ensures ink ripples stay inside the borders
+                  clipBehavior: Clip.antiAlias,
                   child: ListView.builder(
                     padding: EdgeInsets.zero,
                     itemCount: _matches.length,
@@ -319,8 +319,8 @@ class _MapScreenState extends State<MapScreen> {
                             color: Colors.blue,
                           ),
                         ),
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          final blocked = await Navigator.push<bool>(
                             context,
                             MaterialPageRoute(
                               builder: (context) => ProfilePreviewScreen(
@@ -328,6 +328,13 @@ class _MapScreenState extends State<MapScreen> {
                               ),
                             ),
                           );
+                          if (blocked == true && mounted) {
+                            setState(() {
+                              _matches.removeWhere(
+                                (m) => (m['id'] as num).toInt() == matchId,
+                              );
+                            });
+                          }
                         },
                         trailing: ElevatedButton(
                           onPressed: () => _sendRequest(matchId),

@@ -4,9 +4,11 @@ import com.Radius.backend.Bases.InterestRepository;
 import com.Radius.backend.Bases.UserRepository;
 import com.Radius.backend.Bases.MeetRequestRepository;
 import com.Radius.backend.Bases.ReportRepository;
+import com.Radius.backend.Bases.UserBlockRepository;
 import com.Radius.backend.Entity.LocationUpdate;
 import com.Radius.backend.Entity.MeetRequest;
 import com.Radius.backend.Entity.User;
+import com.Radius.backend.Entity.UserBlock;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,19 +31,22 @@ public class UserController {
     private final BCryptPasswordEncoder encoder;
     private final MeetRequestRepository meetRequestRepository;
     private final ReportRepository reportRepository;
+    private final UserBlockRepository blockRepository;
 
     public UserController(
         UserRepository repo,
         InterestRepository interestRepository,
         BCryptPasswordEncoder encoder,
         MeetRequestRepository meetRequestRepository,
-        ReportRepository reportRepository
+        ReportRepository reportRepository,
+        UserBlockRepository blockRepository
     ) {
         this.repo = repo;
         this.interestRepository = interestRepository;
         this.encoder = encoder;
         this.meetRequestRepository = meetRequestRepository;
         this.reportRepository = reportRepository;
+        this.blockRepository = blockRepository;
     }
 
     @PostMapping("/{id}/location")
@@ -167,6 +172,20 @@ public class UserController {
     }
 
     // ----------------------------------------------------------------
+    // BLOCK USER
+    // ----------------------------------------------------------------
+    @PostMapping("/{id}/block/{blockedId}")
+    public ResponseEntity<?> blockUser(@PathVariable long id, @PathVariable long blockedId) {
+        if (id == blockedId) {
+            return ResponseEntity.badRequest().body("Cannot block yourself");
+        }
+        if (!blockRepository.existsByBlockerIdAndBlockedId(id, blockedId)) {
+            blockRepository.save(new UserBlock(id, blockedId));
+        }
+        return ResponseEntity.ok(Map.of("message", "User blocked"));
+    }
+
+    // ----------------------------------------------------------------
     // ACCOUNT DELETION
     // ----------------------------------------------------------------
     @DeleteMapping("/{id}")
@@ -176,21 +195,21 @@ public class UserController {
             User user = repo.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found: " + id));
 
-            // 1. Clear interests join table first to avoid FK constraint
             user.getInterests().clear();
             repo.save(user);
 
-            // 2. Delete all meet requests involving this user
             List<MeetRequest> sent = meetRequestRepository.findByRequesterId((int) id);
             List<MeetRequest> received = meetRequestRepository.findByReceiverId((int) id);
             meetRequestRepository.deleteAll(sent);
             meetRequestRepository.deleteAll(received);
 
-            // 3. Delete all reports involving this user
             reportRepository.deleteAll(reportRepository.findByReporterId((int) id));
             reportRepository.deleteAll(reportRepository.findByReportedUserId((int) id));
 
-            // 4. Delete the user
+            // Delete blocks involving this user
+            blockRepository.deleteAll(blockRepository.findByBlockerId(id));
+            blockRepository.deleteAll(blockRepository.findByBlockedId(id));
+
             repo.delete(user);
 
             return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));

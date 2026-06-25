@@ -111,6 +111,53 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     );
   }
 
+  void _openBlockDialog() {
+    if (_myUserId == null) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Block this user?"),
+        content: const Text(
+          "They won't appear in your scans and you won't appear in theirs.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _submitBlock();
+            },
+            child: const Text("Block", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitBlock() async {
+    if (_myUserId == null) return;
+    final blockedId = int.tryParse(widget.userId);
+    if (blockedId == null) return;
+
+    try {
+      await ApiService.blockUser(_myUserId!, blockedId);
+      if (mounted) {
+        // Pop back with true so MapScreen/RequestsScreen knows to remove this user
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to block user.")),
+        );
+      }
+    }
+  }
+
   Future<void> _submitReport(String reason, String details) async {
     if (_myUserId == null) return;
 
@@ -129,7 +176,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("You can't report yourself.")),
+          const SnackBar(content: Text("You can't report yourself.")),
         );
       }
     } finally {
@@ -143,6 +190,11 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
       appBar: AppBar(
         title: const Text('Profile Preview'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.block),
+            tooltip: "Block user",
+            onPressed: _myUserId == null ? null : _openBlockDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.flag_outlined),
             tooltip: "Report user",

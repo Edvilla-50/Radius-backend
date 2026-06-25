@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/ApiService.dart';
-import '../state/AppState.dart'; // ADDED: Import AppState to keep everything synchronized
+import '../state/AppState.dart';
 import 'SuggestionsScreen.dart';
 import 'ProfilePreviewScreen.dart';
 
@@ -26,7 +26,6 @@ class _RequestsScreenState extends State<RequestsScreen> {
     setState(() => loading = true);
     try {
       final incoming = await ApiService.getIncoming(widget.userId);
-      // Fetch requester names
       final enriched = await Future.wait(incoming.map((req) async {
         final requesterId = (req["requesterId"] as num).toInt();
         final user = await ApiService.getUser(requesterId);
@@ -58,10 +57,8 @@ class _RequestsScreenState extends State<RequestsScreen> {
       final otherUserId =
           requesterId == widget.userId ? receiverId : requesterId;
 
-      // FIX 1: Explicitly register the match context to AppState so SOS works instantly
       AppState().setActiveMatch(matchId);
 
-      // FIX 2: Fixed constructor parameter alignment to match your updated SuggestionsScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -72,13 +69,13 @@ class _RequestsScreenState extends State<RequestsScreen> {
         ),
       );
     } else {
-      _loadRequests(); // Refresh list after declining
+      _loadRequests();
     }
   }
 
-  void _openProfile(dynamic req) {
+  Future<void> _openProfile(dynamic req) async {
     final requesterId = (req["requesterId"] as num).toInt();
-    Navigator.push(
+    final blocked = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => ProfilePreviewScreen(
@@ -86,6 +83,13 @@ class _RequestsScreenState extends State<RequestsScreen> {
         ),
       ),
     );
+    if (blocked == true && mounted) {
+      setState(() {
+        requests.removeWhere(
+          (r) => (r["requesterId"] as num).toInt() == requesterId,
+        );
+      });
+    }
   }
 
   @override

@@ -452,6 +452,16 @@ class ApiService {
       throw Exception("Failed to submit report");
     }
   }
+  static Future<void> blockUser(int blockerId, int blockedId) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/user/$blockerId/block/$blockedId"),
+      headers: {"Content-Type": "application/json"},
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to block user");
+    }
+  }
   static Future<void> deleteAccount(int userId) async {
     final res = await http.delete(
       Uri.parse("$baseUrl/user/$userId"),
