@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
 import '../services/ApiService.dart';
@@ -28,13 +29,14 @@ class _MapScreenState extends State<MapScreen> {
   bool _scanning = false;
   bool _ghostMode = false;
   bool _ghostModeLoading = false;
+  bool _locationSharingConsented = false;
   final MapController _mapController = MapController();
   StreamSubscription<Position>? _locationStream;
 
   @override
   void initState() {
     super.initState();
-    _getLocation();
+    _initLocationWithConsent();
     _loadGhostMode();
   }
 
@@ -43,6 +45,76 @@ class _MapScreenState extends State<MapScreen> {
     _locationStream?.cancel();
     _locationStream = null;
     super.dispose();
+  }
+
+  Future<void> _initLocationWithConsent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final alreadyConsented = prefs.getBool('locationSharingConsented') ?? false;
+
+    if (alreadyConsented) {
+      setState(() => _locationSharingConsented = true);
+      _getLocation();
+      return;
+    }
+
+    // Show consent dialog on first use
+    if (!mounted) return;
+    final consented = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Allow Location Sharing?'),
+        content: const Text(
+          'Radius shows your location to nearby users so you can meet up. '
+          'You can hide yourself at any time using Ghost Mode.\n\n'
+          'Do you want to be visible to nearby users?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No, keep me hidden'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes, show me'),
+          ),
+        ],
+      ),
+    );
+
+    final agreed = consented ?? false;
+    await prefs.setBool('locationSharingConsented', agreed);
+
+    if (!mounted) return;
+    setState(() => _locationSharingConsented = agreed);
+
+    if (agreed) {
+      _getLocation();
+    } else {
+      // User declined — enable ghost mode so they're hidden from scans
+      await ApiService.updateGhostMode(widget.userId, true);
+      if (mounted) setState(() => _ghostMode = true);
+      // Still get GPS for the map display, just don't share it
+      _getLocationSilent();
+    }
+  }
+
+  // Gets GPS for local map display only — does NOT send to backend
+  Future<void> _getLocationSilent() async {
+    try {
+      await Geolocator.requestPermission();
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+      setState(() {
+        _myLocation = LatLng(position.latitude, position.longitude);
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _mapController.move(_myLocation!, 15.0);
+      });
+    } catch (e) {
+      debugPrint('MapScreen _getLocationSilent error: $e');
+    }
   }
 
   Future<void> _loadGhostMode() async {
@@ -84,37 +156,34 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _getLocation() async {
-    try {
-      await Geolocator.requestPermission();
-      final position = await Geolocator.getCurrentPosition();
+Future<void> _getLocation() async {
+  try {
+    await Geolocator.requestPermission();
+    final position = await Geolocator.getCurrentPosition();
+    if (!mounted) return;
+    setState(() {
+      _myLocation = LatLng(position.latitude, position.longitude);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _mapController.move(_myLocation!, 15.0);
+    });
+    _locationStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((Position position) async {
       if (!mounted) return;
       setState(() {
         _myLocation = LatLng(position.latitude, position.longitude);
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _mapController.move(_myLocation!, 15.0);
-      });
-      await ApiService.updateLocation(
-          widget.userId, position.latitude, position.longitude);
-      _locationStream = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10,
-        ),
-      ).listen((Position position) async {
-        if (!mounted) return;
-        setState(() {
-          _myLocation = LatLng(position.latitude, position.longitude);
-        });
-        await ApiService.updateLocation(
-            widget.userId, position.latitude, position.longitude);
-      });
-    } catch (e) {
-      debugPrint('MapScreen _getLocation error: $e');
-    }
+      // No longer pushing to backend here
+    });
+  } catch (e) {
+    debugPrint('MapScreen _getLocation error: $e');
   }
+}
 
   Future<void> _sendRequest(int otherUserId) async {
     try {
@@ -132,20 +201,28 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _scan() async {
-    if (!mounted) return;
-    setState(() => _scanning = true);
-    try {
-      final matches = await ApiService.getMatches(widget.userId);
-      if (!mounted) return;
-      setState(() {
-        _matches = matches;
-        _scanning = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _scanning = false);
+  if (!mounted) return;
+  setState(() => _scanning = true);
+  try {
+    // Manual check-in — only share location when user taps SCAN
+    if (_myLocation != null) {
+      await ApiService.updateLocation(
+        widget.userId,
+        _myLocation!.latitude,
+        _myLocation!.longitude,
+      );
     }
+    final matches = await ApiService.getMatches(widget.userId);
+    if (!mounted) return;
+    setState(() {
+      _matches = matches;
+      _scanning = false;
+    });
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _scanning = false);
   }
+}
 
   void _showPlaylistEasterEgg() {
     showDialog(

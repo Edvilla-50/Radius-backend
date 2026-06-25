@@ -17,7 +17,48 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController phoneController = TextEditingController();
 
   bool loading = false;
+  bool _eulaAccepted = false;
   String? errorMessage;
+
+  void _showEula() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Terms of Use"),
+        content: SingleChildScrollView(
+          child: const Text(
+            "By using Radius, you agree to the following:\n\n"
+            "1. NO OBJECTIONABLE CONTENT\n"
+            "You must not post, share, or display any content that is offensive, "
+            "abusive, hateful, threatening, or otherwise objectionable. Violations "
+            "will result in immediate account removal.\n\n"
+            "2. NO ABUSIVE BEHAVIOR\n"
+            "Harassment, bullying, stalking, or any abusive behavior toward other "
+            "users is strictly prohibited.\n\n"
+            "3. REAL IDENTITY\n"
+            "You must not impersonate others or create fake accounts.\n\n"
+            "4. LOCATION SHARING\n"
+            "By using the scan feature, you consent to sharing your location with "
+            "nearby users. You may hide yourself at any time using Ghost Mode.\n\n"
+            "5. REPORTING\n"
+            "You agree to report any objectionable content or abusive users using "
+            "the in-app reporting tools.\n\n"
+            "6. ENFORCEMENT\n"
+            "Radius reserves the right to remove any content and terminate any "
+            "account that violates these terms at our sole discretion.\n\n"
+            "By creating an account, you confirm you have read, understood, and "
+            "agree to these Terms of Use.",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> register() async {
     final name = nameController.text.trim();
@@ -27,6 +68,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     if (name.isEmpty || email.isEmpty || password.isEmpty || phone.isEmpty) {
       setState(() => errorMessage = "All fields are required");
+      return;
+    }
+
+    if (!_eulaAccepted) {
+      setState(() => errorMessage = "You must agree to the Terms of Use");
       return;
     }
 
@@ -60,7 +106,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Create Account")),
+      appBar: AppBar(title: const Text("Create Account")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -69,46 +115,46 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(errorMessage!,
-                    style: TextStyle(color: Colors.red, fontSize: 14)),
+                    style: const TextStyle(color: Colors.red, fontSize: 14)),
               ),
 
             TextField(
               controller: nameController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: "Name",
                 border: OutlineInputBorder(),
               ),
             ),
 
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
 
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: "Email",
                 border: OutlineInputBorder(),
               ),
             ),
 
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
 
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: "Password",
                 border: OutlineInputBorder(),
               ),
             ),
 
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
 
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: "Emergency Contact Number",
                 hintText: "12223334444",
                 prefixText: "+",
@@ -116,13 +162,47 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
             ),
 
-            SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // EULA checkbox
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Checkbox(
+                  value: _eulaAccepted,
+                  onChanged: (val) =>
+                      setState(() => _eulaAccepted = val ?? false),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _showEula,
+                    child: RichText(
+                      text: const TextSpan(
+                        style: TextStyle(color: Colors.black87, fontSize: 14),
+                        children: [
+                          TextSpan(text: "I agree to the "),
+                          TextSpan(
+                            text: "Terms of Use",
+                            style: TextStyle(
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
 
             ElevatedButton(
               onPressed: loading ? null : register,
               child: loading
-                  ? CircularProgressIndicator(color: Colors.white)
-                  : Text("Create Account"),
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Create Account"),
             ),
           ],
         ),
