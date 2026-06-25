@@ -6,7 +6,7 @@ import 'MapScreen.dart';
 import 'RequestsScreen.dart';
 import 'ProfileScreen.dart';
 import 'RankScreen.dart';
-import 'EmergencyScreen.dart';
+import 'home_emergency_screen.dart';
 import 'SuggestionsScreen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -192,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
       RequestsScreen(userId: userId!),
       ProfileScreen(userId: userId!),
       RankScreen(userId: userId!),
-      EmergencyScreen(userId: userId!),
+      HomeEmergencyScreen(userId: userId!),
     ];
 
     return Scaffold(
