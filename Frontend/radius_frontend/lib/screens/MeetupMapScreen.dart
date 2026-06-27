@@ -136,13 +136,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
 
         try {
           final res = await ApiService.checkMutual(widget.matchId);
-          
-          // Fallback: If a user clears the meeting room entirely, the result could be null
-          if (res == null) {
-            debugPrint("⚠️ Match record missing from server. Routing home.");
-            _exitToHomeUnconditionally();
-            return;
-          }
 
           _pollCount++;
           if (_pollCount < 3) return;

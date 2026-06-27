@@ -7,7 +7,7 @@ class ChatScreen extends StatefulWidget {
   final int userId;
   final int otherUserId;
 
-  const ChatScreen({
+  const ChatScreen({super.key, 
     required this.userId,
     required this.otherUserId,
   });

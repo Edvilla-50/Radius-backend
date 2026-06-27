@@ -7,9 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
 import '../services/ApiService.dart';
-import '../services/LocationService.dart';
 import 'ProfilePreviewScreen.dart';
-import 'SuggestionsScreen.dart';
 import 'OnboardingScreen.dart';
 
 const String _spotifyPlaylistUrl = 'https://open.spotify.com/playlist/4mmKm7hFzxAn2XYtx4JqRS?si=6A0E9NdDSjaBp7pExHlXIw&pi=YsDnlnQNQAePF';
@@ -299,7 +297,7 @@ Future<void> _getLocation() async {
               heroTag: "ghost_mode_btn",
               backgroundColor: _ghostMode
                   ? Colors.deepPurple
-                  : Colors.white.withOpacity(0.9),
+                  : Colors.white.withValues(alpha: 0.9),
               onPressed: _ghostModeLoading ? null : _toggleGhostMode,
               child: _ghostModeLoading
                   ? const SizedBox(
@@ -322,7 +320,7 @@ Future<void> _getLocation() async {
             right: 15,
             child: FloatingActionButton.small(
               heroTag: "tutorial_btn",
-              backgroundColor: Colors.white.withOpacity(0.9),
+              backgroundColor: Colors.white.withValues(alpha: 0.9),
               child: const Icon(Icons.help_outline, color: Colors.blue),
               onPressed: () {
                 Navigator.push(
@@ -377,7 +375,7 @@ Future<void> _getLocation() async {
                 height: 150,
                 child: Material(
                   elevation: 2,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(10),
                   clipBehavior: Clip.antiAlias,
                   child: ListView.builder(
