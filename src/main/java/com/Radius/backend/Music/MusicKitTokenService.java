@@ -2,14 +2,9 @@ package com.Radius.backend.Music;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -23,8 +18,8 @@ import java.util.Date;
  * This token identifies the Radius app to Apple's catalog API and is safe
  * to hand to the client — it never contains the private key itself.
  *
- * The .p8 private key file NEVER leaves the backend. Store its path (or raw
- * contents) in an environment variable / secret manager — never commit it.
+ * The .p8 private key contents live in a Render environment variable
+ * (MUSICKIT_PRIVATE_KEY) — never committed to the repo, never written to disk.
  */
 @Service
 public class MusicKitTokenService {
@@ -35,8 +30,10 @@ public class MusicKitTokenService {
     @Value("${musickit.key-id}")        // 10-char Key ID from the Keys page
     private String keyId;
 
-    @Value("${musickit.private-key-path}") // e.g. /etc/secrets/AuthKey_XXXXXXXXXX.p8
-    private String privateKeyPath;
+    // Paste the FULL .p8 file contents (including the BEGIN/END lines) as the
+    // value of the MUSICKIT_PRIVATE_KEY env var on Render.
+    @Value("${musickit.private-key}")
+    private String privateKeyContents;
 
     private String cachedToken;
     private Instant cachedTokenExpiry;
@@ -51,7 +48,7 @@ public class MusicKitTokenService {
             return cachedToken;
         }
 
-        PrivateKey privateKey = loadPrivateKey(privateKeyPath);
+        PrivateKey privateKey = loadPrivateKey(privateKeyContents);
 
         Instant now = Instant.now();
         Instant expiry = now.plus(Duration.ofDays(165)); // ~5.5 months
@@ -70,9 +67,12 @@ public class MusicKitTokenService {
         return token;
     }
 
-    private PrivateKey loadPrivateKey(String path) throws IOException, Exception {
-        String pem = Files.readString(Path.of(path));
-        String cleaned = pem
+    private PrivateKey loadPrivateKey(String pemContents) throws Exception {
+        // Render env vars sometimes collapse actual newlines into the literal
+        // two-character sequence "\n" — handle both cases before stripping.
+        String normalized = pemContents.replace("\\n", "\n");
+
+        String cleaned = normalized
                 .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
                 .replaceAll("\\s", "");
