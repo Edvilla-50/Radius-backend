@@ -1,6 +1,5 @@
 package com.Radius.backend.Music;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -42,49 +41,69 @@ public class AppleMusicService {
 
         try {
 
-            ResponseEntity<JsonNode> response = restTemplate.exchange(
+            ResponseEntity<String> response = restTemplate.exchange(
                     RECENT_TRACKS_URL,
                     HttpMethod.GET,
                     new HttpEntity<>(headers),
-                    JsonNode.class
+                    String.class
             );
 
-            JsonNode body = response.getBody();
+            System.out.println(
+                    "Apple Music recent tracks status: "
+                            + response.getStatusCode()
+            );
 
-            System.out.println("Apple Music recent tracks status: "
-                    + response.getStatusCode());
+            String body = response.getBody();
 
-            System.out.println("Apple Music recent tracks response: "
-                    + body);
+            System.out.println(
+                    "Apple Music recent tracks response: "
+                            + body
+            );
 
-            if (body == null) {
+            if (body == null || body.isBlank()) {
                 return null;
             }
 
-            JsonNode data = body.path("data");
+            com.fasterxml.jackson.databind.ObjectMapper mapper =
+                    new com.fasterxml.jackson.databind.ObjectMapper();
+
+            com.fasterxml.jackson.databind.JsonNode root =
+                    mapper.readTree(body);
+
+            com.fasterxml.jackson.databind.JsonNode data =
+                    root.path("data");
 
             if (!data.isArray() || data.isEmpty()) {
                 return null;
             }
 
-            JsonNode track = data.get(0);
+            com.fasterxml.jackson.databind.JsonNode track =
+                    data.get(0);
 
-            String trackId = track.path("id").asText(null);
+            String trackId =
+                    track.path("id").asText(null);
 
             if (trackId == null || trackId.isBlank()) {
                 return null;
             }
 
-            JsonNode attrs = track.path("attributes");
+            com.fasterxml.jackson.databind.JsonNode attrs =
+                    track.path("attributes");
 
             RecentTrack result = new RecentTrack();
 
             result.trackId = trackId;
-            result.trackName = attrs.path("name").asText("");
-            result.artistName = attrs.path("artistName").asText("");
+
+            result.trackName =
+                    attrs.path("name").asText("");
+
+            result.artistName =
+                    attrs.path("artistName").asText("");
 
             String artworkUrl =
-                    attrs.path("artwork").path("url").asText("");
+                    attrs.path("artwork")
+                            .path("url")
+                            .asText("");
 
             if (!artworkUrl.isBlank()) {
                 result.albumArtUrl = artworkUrl
@@ -92,12 +111,15 @@ public class AppleMusicService {
                         .replace("{h}", "300");
             }
 
-            JsonNode previews = attrs.path("previews");
+            com.fasterxml.jackson.databind.JsonNode previews =
+                    attrs.path("previews");
 
             if (previews.isArray() && !previews.isEmpty()) {
 
                 result.previewUrl =
-                        previews.get(0).path("url").asText(null);
+                        previews.get(0)
+                                .path("url")
+                                .asText(null);
 
             } else {
 
@@ -122,7 +144,8 @@ public class AppleMusicService {
             );
 
             System.err.println(
-                    "RESPONSE BODY: " + e.getResponseBodyAsString()
+                    "RESPONSE BODY: "
+                            + e.getResponseBodyAsString()
             );
 
             System.err.println(
@@ -156,35 +179,43 @@ public class AppleMusicService {
 
         try {
 
-            ResponseEntity<JsonNode> response =
+            ResponseEntity<String> response =
                     restTemplate.exchange(
                             url,
                             HttpMethod.GET,
                             new HttpEntity<>(headers),
-                            JsonNode.class
+                            String.class
                     );
 
-            JsonNode body = response.getBody();
+            String body = response.getBody();
 
-            if (body == null) {
+            if (body == null || body.isBlank()) {
                 return null;
             }
 
-            JsonNode data = body.path("data");
+            com.fasterxml.jackson.databind.ObjectMapper mapper =
+                    new com.fasterxml.jackson.databind.ObjectMapper();
+
+            com.fasterxml.jackson.databind.JsonNode root =
+                    mapper.readTree(body);
+
+            com.fasterxml.jackson.databind.JsonNode data =
+                    root.path("data");
 
             if (!data.isArray() || data.isEmpty()) {
                 return null;
             }
 
-            JsonNode song = data.get(0);
+            com.fasterxml.jackson.databind.JsonNode song =
+                    data.get(0);
 
-            JsonNode previews =
-                    song.path("attributes").path("previews");
+            com.fasterxml.jackson.databind.JsonNode previews =
+                    song.path("attributes")
+                            .path("previews");
 
             if (previews.isArray() && !previews.isEmpty()) {
 
-                return previews
-                        .get(0)
+                return previews.get(0)
                         .path("url")
                         .asText(null);
             }
@@ -196,6 +227,13 @@ public class AppleMusicService {
                             + e.getStatusCode()
                             + " "
                             + e.getResponseBodyAsString()
+            );
+
+        } catch (Exception e) {
+
+            System.err.println(
+                    "Apple Music catalog JSON parsing failed: "
+                            + e.getMessage()
             );
         }
 
