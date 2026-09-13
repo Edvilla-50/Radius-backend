@@ -37,7 +37,7 @@ public class AppleMusicTestController {
                     new RestTemplate();
 
             String url =
-        "https://api.music.apple.com/v1/storefronts/us";
+        "https://api.music.apple.com/v1/catalog/us/songs/203709340";
 
             ResponseEntity<String> response =
                     restTemplate.exchange(
