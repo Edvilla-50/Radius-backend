@@ -33,7 +33,7 @@ android {
         applicationId = "com.eddie.radiusapp"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 14
+        versionCode = 15
         versionName = "1.0.5"
     }
 

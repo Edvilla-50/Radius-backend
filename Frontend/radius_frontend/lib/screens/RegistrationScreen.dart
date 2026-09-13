@@ -45,7 +45,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             "the in-app reporting tools.\n\n"
             "6. ENFORCEMENT\n"
             "Radius reserves the right to remove any content and terminate any "
-            "account that violates these terms at our sole discretion.\n\n"
+            "account that violates these terms at our sole discretion. "
+            "Radius reviews all reports within 24 hours and will remove objectionable "
+            "content and terminate offending accounts promptly. A profanity filter is "
+            "applied to all messages automatically.\n\n"
             "By creating an account, you confirm you have read, understood, and "
             "agree to these Terms of Use.",
           ),
