@@ -37,8 +37,7 @@ public class AppleMusicTestController {
                     new RestTemplate();
 
             String url =
-                    "https://api.music.apple.com/v1/catalog/us/search" +
-                    "?term=Taylor%20Swift&types=songs&limit=1";
+        "https://api.music.apple.com/v1/storefronts/us";
 
             ResponseEntity<String> response =
                     restTemplate.exchange(
