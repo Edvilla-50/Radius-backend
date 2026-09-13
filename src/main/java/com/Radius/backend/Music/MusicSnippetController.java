@@ -1,20 +1,19 @@
 package com.Radius.backend.Music;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.time.Instant;
 
-interface MusicSnippetRepository extends JpaRepository<MusicSnippet, Long> {
-}
+interface MusicSnippetRepository extends JpaRepository<MusicSnippet, Long> {}
 
 @RestController
 @RequestMapping("/api/music")
 public class MusicSnippetController {
 
-    private static final Duration REFRESH_INTERVAL =
-            Duration.ofMinutes(20);
+    private static final Duration REFRESH_INTERVAL = Duration.ofMinutes(20);
 
     private final MusicSnippetRepository repository;
     private final AppleMusicService appleMusicService;
@@ -33,14 +32,19 @@ public class MusicSnippetController {
             @RequestBody ConnectRequest req
     ) throws Exception {
 
+        if (req == null
+                || req.appleMusicUserToken == null
+                || req.appleMusicUserToken.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Apple Music user token is missing."
+            );
+        }
+
         MusicSnippet snippet =
-                repository.findById(userId)
-                        .orElse(new MusicSnippet());
+                repository.findById(userId).orElse(new MusicSnippet());
 
         snippet.setUserId(userId);
-        snippet.setAppleMusicUserToken(
-                req.appleMusicUserToken
-        );
+        snippet.setAppleMusicUserToken(req.appleMusicUserToken);
 
         refreshFromApple(snippet);
 
@@ -56,17 +60,16 @@ public class MusicSnippetController {
                 repository.findById(userId).orElse(null);
 
         if (snippet == null
-                || snippet.getAppleMusicUserToken() == null) {
-
+                || snippet.getAppleMusicUserToken() == null
+                || snippet.getAppleMusicUserToken().isBlank()) {
             return null;
         }
 
         boolean stale =
                 snippet.getLastUpdated() == null
-                || Instant.now().isAfter(
-                        snippet.getLastUpdated()
-                                .plus(REFRESH_INTERVAL)
-                );
+                        || Instant.now().isAfter(
+                                snippet.getLastUpdated().plus(REFRESH_INTERVAL)
+                        );
 
         if (stale) {
             refreshFromApple(snippet);
@@ -76,9 +79,19 @@ public class MusicSnippetController {
         return snippet;
     }
 
-    public void refreshFromApple(
-            MusicSnippet snippet
-    ) throws Exception {
+    @DeleteMapping("/disconnect/{userId}")
+    public ResponseEntity<Void> disconnect(
+            @PathVariable Long userId
+    ) {
+
+        if (repository.existsById(userId)) {
+            repository.deleteById(userId);
+        }
+
+        return ResponseEntity.noContent().build();
+    }
+
+    public void refreshFromApple(MusicSnippet snippet) throws Exception {
 
         if (snippet == null
                 || snippet.getAppleMusicUserToken() == null
@@ -92,15 +105,10 @@ public class MusicSnippetController {
                 );
 
         if (track != null) {
-
             snippet.setTrackId(track.trackId);
-
             snippet.setTrackName(track.trackName);
-
             snippet.setArtistName(track.artistName);
-
             snippet.setAlbumArtUrl(track.albumArtUrl);
-
             snippet.setPreviewUrl(track.previewUrl);
         }
 
@@ -108,7 +116,6 @@ public class MusicSnippetController {
     }
 
     public static class ConnectRequest {
-
         public String appleMusicUserToken;
     }
 }

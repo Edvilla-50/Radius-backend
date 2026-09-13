@@ -22,8 +22,7 @@ public class AppleMusicScheduler {
     @Scheduled(fixedRate = 30000)
     public void refreshAppleMusic() {
 
-        List<MusicSnippet> snippets =
-                repository.findAll();
+        List<MusicSnippet> snippets = repository.findAll();
 
         for (MusicSnippet snippet : snippets) {
 
@@ -33,9 +32,7 @@ public class AppleMusicScheduler {
             }
 
             try {
-
                 controller.refreshFromApple(snippet);
-
                 repository.save(snippet);
 
                 System.out.println(
@@ -46,7 +43,6 @@ public class AppleMusicScheduler {
                 );
 
             } catch (Exception e) {
-
                 System.err.println(
                         "Apple Music refresh failed for user "
                                 + snippet.getUserId()
