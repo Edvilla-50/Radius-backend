@@ -2,7 +2,6 @@ package com.Radius.backend.Music;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -48,9 +47,6 @@ public class MusicKitTokenService {
                 .setIssuer(teamId)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(expiry))
-                .claim("origin", new String[] {
-                        "https://www.radius-create.com"
-                })
                 .signWith(privateKey, SignatureAlgorithm.ES256)
                 .compact();
 
