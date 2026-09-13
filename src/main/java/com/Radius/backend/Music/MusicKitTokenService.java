@@ -2,6 +2,7 @@ package com.Radius.backend.Music;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -29,11 +30,15 @@ public class MusicKitTokenService {
     private Instant cachedTokenExpiry;
 
     public synchronized String getDeveloperToken() throws Exception {
-        if (cachedToken != null && cachedTokenExpiry != null && Instant.now().isBefore(cachedTokenExpiry)) {
+
+        if (cachedToken != null
+                && cachedTokenExpiry != null
+                && Instant.now().isBefore(cachedTokenExpiry)) {
             return cachedToken;
         }
 
         PrivateKey privateKey = loadPrivateKey(privateKeyContents);
+
         Instant now = Instant.now();
         Instant expiry = now.plus(Duration.ofDays(165));
 
@@ -43,32 +48,44 @@ public class MusicKitTokenService {
                 .setIssuer(teamId)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(expiry))
-                .claim("origin", new String[]{"https://www.radius-create.com"})
+                .claim("origin", new String[] {
+                        "https://www.radius-create.com"
+                })
                 .signWith(privateKey, SignatureAlgorithm.ES256)
                 .compact();
 
-        this.cachedToken = token;
-        this.cachedTokenExpiry = expiry;
+        cachedToken = token;
+        cachedTokenExpiry = expiry;
 
         return token;
     }
 
     private PrivateKey loadPrivateKey(String pemContents) throws Exception {
+
         if (pemContents == null || pemContents.isBlank()) {
-            throw new IllegalStateException("MUSICKIT_PRIVATE_KEY is missing or empty");
+            throw new IllegalStateException(
+                    "MUSICKIT_PRIVATE_KEY is missing or empty"
+            );
         }
 
-        String cleaned = pemContents
+        String normalized = pemContents
                 .replace("\\n", "\n")
                 .replace("\r\n", "\n")
                 .replace("\r", "\n")
+                .trim();
+
+        String cleaned = normalized
                 .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
                 .replaceAll("\\s", "");
 
         byte[] decoded = Base64.getDecoder().decode(cleaned);
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(decoded);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC");
+
+        PKCS8EncodedKeySpec keySpec =
+                new PKCS8EncodedKeySpec(decoded);
+
+        KeyFactory keyFactory =
+                KeyFactory.getInstance("EC");
 
         return keyFactory.generatePrivate(keySpec);
     }
