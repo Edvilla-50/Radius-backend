@@ -1,0 +1,80 @@
+package com.Radius.backend.Music;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.Duration;
+import java.time.Instant;
+
+interface MusicSnippetRepository extends JpaRepository<MusicSnippet, Long> {}
+
+@RestController
+@RequestMapping("/api/music")
+public class MusicSnippetController {
+
+    private static final Duration REFRESH_INTERVAL = Duration.ofMinutes(20);
+
+    private final MusicSnippetRepository repository;
+    private final AppleMusicService appleMusicService;
+
+    public MusicSnippetController(MusicSnippetRepository repository,
+                                   AppleMusicService appleMusicService) {
+        this.repository = repository;
+        this.appleMusicService = appleMusicService;
+    }
+
+    /**
+     * Called once from the Flutter app right after the native MusicKit
+     * authorization flow returns a user token. Stores it and does an
+     * immediate first fetch so the profile has something to show right away.
+     */
+    @PostMapping("/connect/{userId}")
+    public MusicSnippet connect(@PathVariable Long userId, @RequestBody ConnectRequest req) throws Exception {
+        MusicSnippet snippet = repository.findById(userId).orElse(new MusicSnippet());
+        snippet.setUserId(userId);
+        snippet.setAppleMusicUserToken(req.appleMusicUserToken); // encrypt before persisting
+
+        refreshFromApple(snippet);
+        return repository.save(snippet);
+    }
+
+    /**
+     * Called when a profile is viewed. Refreshes from Apple only if the
+     * cached data is stale, so we're not hitting Apple's API on every view.
+     */
+    @GetMapping("/{userId}")
+    public MusicSnippet getSnippet(@PathVariable Long userId) throws Exception {
+        MusicSnippet snippet = repository.findById(userId).orElse(null);
+        if (snippet == null || snippet.getAppleMusicUserToken() == null) {
+            return null; // user hasn't connected Apple Music
+        }
+
+        boolean stale = snippet.getLastUpdated() == null
+                || Instant.now().isAfter(snippet.getLastUpdated().plus(REFRESH_INTERVAL));
+
+        if (stale) {
+            refreshFromApple(snippet);
+            repository.save(snippet);
+        }
+
+        return snippet;
+    }
+
+    private void refreshFromApple(MusicSnippet snippet) throws Exception {
+        AppleMusicService.RecentTrack track =
+                appleMusicService.getMostRecentTrack(snippet.getAppleMusicUserToken());
+
+        if (track != null) {
+            snippet.setTrackId(track.trackId);
+            snippet.setTrackName(track.trackName);
+            snippet.setArtistName(track.artistName);
+            snippet.setAlbumArtUrl(track.albumArtUrl);
+            snippet.setPreviewUrl(track.previewUrl);
+        }
+        snippet.setLastUpdated(Instant.now());
+    }
+
+    public static class ConnectRequest {
+        public String appleMusicUserToken;
+    }
+}
