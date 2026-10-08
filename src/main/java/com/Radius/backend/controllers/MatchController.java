@@ -72,7 +72,7 @@ public class MatchController {
             );
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(Map.of("error", e.getMessage()));
+                    .body(Map.of("error", String.valueOf(e)));
         }
     }
 
