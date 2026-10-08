@@ -8,33 +8,64 @@ import com.Radius.backend.dto.SuggestionsResponse;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class OverpassPlacesService {
 
-    private static final String OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+    // Tried in order. The last one that worked is tried first next time.
+    // These are community-run servers; swap any that go away.
+    private static final List<String> OVERPASS_URLS = List.of(
+            "https://overpass-api.de/api/interpreter",
+            "https://overpass.kumi.systems/api/interpreter",
+            "https://overpass.private.coffee/api/interpreter"
+    );
+
+    // Overpass operators block anonymous/default Java user agents.
+    private static final String USER_AGENT =
+            "Radius/1.0 (+https://radius-create.com; support@radius-create.com)";
+
     private static final String AMENITY_TAGS = "cafe|restaurant|bar|pub|fast_food|library";
     private static final String LEISURE_TAGS = "park|fitness_centre|sports_centre";
 
+    private static final long CACHE_TTL_MS = 6 * 60 * 60 * 1000L;
+
+    private record CachedPlaces(List<SuggestedPlace> places, long cachedAt) {}
+
+    private final Map<String, CachedPlaces> placeCache = new ConcurrentHashMap<>();
+    private volatile int preferredIndex = 0;
+
     private final RestTemplate restTemplate;
 
-    public OverpassPlacesService(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    public OverpassPlacesService() {
+        // Own RestTemplate so a slow server can't hang a request (and the match lock) forever.
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(Duration.ofSeconds(30));
+        this.restTemplate = new RestTemplate(factory);
     }
 
     public SuggestionsResponse findPlacesForInterests(double lat, double lon, int radius, List<Map<String, String>> tagFilters) {
-        
+
         List<SuggestedPlace> places = List.of();
-        
+
         if (!tagFilters.isEmpty()) {
-            OverpassResponse response = callOverpass(buildInterestQuery(lat, lon, radius, tagFilters));
-            places = mapToSuggestedPlaces(response);
+            String key = cacheKey(lat, lon, radius, "interest:" + tagFilters);
+            places = lookup(key, buildInterestQuery(lat, lon, radius, tagFilters));
         }
 
         if (places.isEmpty()) {
@@ -45,36 +76,88 @@ public class OverpassPlacesService {
     }
 
     public SuggestionsResponse findNearbyPlaces(double lat, double lon, int radius) {
-        OverpassResponse response = callOverpass(buildFallbackQuery(lat, lon, radius));
-        return new SuggestionsResponse(mapToSuggestedPlaces(response));
+        String key = cacheKey(lat, lon, radius, "fallback");
+        return new SuggestionsResponse(lookup(key, buildFallbackQuery(lat, lon, radius)));
     }
+
+    // ---------------- CACHE ----------------
+
+    private String cacheKey(double lat, double lon, int radius, String variant) {
+        // 3 decimals is roughly 110 m, so nearby midpoints share results.
+        return String.format(Locale.US, "%.3f,%.3f,%d,%s", lat, lon, radius, variant);
+    }
+
+    private List<SuggestedPlace> lookup(String key, String query) {
+        CachedPlaces hit = placeCache.get(key);
+        if (hit != null && System.currentTimeMillis() - hit.cachedAt() < CACHE_TTL_MS) {
+            return hit.places();
+        }
+
+        List<SuggestedPlace> places = mapToSuggestedPlaces(callOverpass(query));
+
+        // Never cache an empty answer.
+        if (!places.isEmpty()) {
+            placeCache.put(key, new CachedPlaces(places, System.currentTimeMillis()));
+        }
+        return places;
+    }
+
+    // ---------------- OVERPASS CALL (with failover) ----------------
 
     private OverpassResponse callOverpass(String query) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        HttpEntity<String> request = new HttpEntity<>("data=" + query, headers);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.set(HttpHeaders.USER_AGENT, USER_AGENT);
 
-        return restTemplate.postForObject(OVERPASS_URL, request, OverpassResponse.class);
+        HttpEntity<String> request = new HttpEntity<>(
+                "data=" + URLEncoder.encode(query, StandardCharsets.UTF_8), headers);
+
+        RuntimeException lastError = null;
+        int start = preferredIndex;
+
+        for (int i = 0; i < OVERPASS_URLS.size(); i++) {
+            int idx = (start + i) % OVERPASS_URLS.size();
+            String url = OVERPASS_URLS.get(idx);
+            try {
+                OverpassResponse response =
+                        restTemplate.postForObject(url, request, OverpassResponse.class);
+                if (response != null) {
+                    preferredIndex = idx;
+                    return response;
+                }
+                System.out.println("Overpass " + url + " returned an empty body");
+            } catch (RuntimeException e) {
+                lastError = e;
+                System.out.println("Overpass " + url + " failed: " + e);
+            }
+        }
+
+        // Every server failed: let the caller's retry logic see the error.
+        if (lastError != null) throw lastError;
+        return null;
     }
+
+    // ---------------- QUERIES ----------------
 
     private String buildInterestQuery(double lat, double lon, int radius, List<Map<String, String>> tagFilters) {
         StringBuilder qb = new StringBuilder();
         qb.append("[out:json][timeout:25];\n(\n");
 
         for (Map<String, String> filter : tagFilters) {
-            qb.append("  nwr"); 
+            qb.append("  nwr");
             for (Map.Entry<String, String> entry : filter.entrySet()) {
                 qb.append(String.format("[\"%s\"=\"%s\"]", entry.getKey(), entry.getValue()));
             }
-            qb.append(String.format("(around:%d,%f,%f);%n", radius, lat, lon));
+            qb.append(String.format(Locale.US, "(around:%d,%f,%f);%n", radius, lat, lon));
         }
 
-        qb.append(");\nout body center;\n"); 
+        qb.append(");\nout body center;\n");
         return qb.toString();
     }
 
     private String buildFallbackQuery(double lat, double lon, int radius) {
-        return String.format("""
+        return String.format(Locale.US, """
                 [out:json][timeout:25];
                 (
                   nwr["amenity"~"%s"](around:%d,%f,%f);
@@ -86,6 +169,8 @@ public class OverpassPlacesService {
                 LEISURE_TAGS, radius, lat, lon);
     }
 
+    // ---------------- MAPPING (unchanged) ----------------
+
     private List<SuggestedPlace> mapToSuggestedPlaces(OverpassResponse response) {
         List<SuggestedPlace> places = new ArrayList<>();
         if (response == null || response.elements() == null) {
@@ -96,7 +181,7 @@ public class OverpassPlacesService {
             Map<String, String> tags = element.tags();
             String name = tags == null ? null : tags.get("name");
             if (name == null || name.equalsIgnoreCase("unbranded")) {
-                continue; 
+                continue;
             }
             double placeLat = 0.0;
             double placeLon = 0.0;
@@ -105,11 +190,9 @@ public class OverpassPlacesService {
             if (element.lat() != null && !element.lat().equals(0.0)) {
                 placeLat = element.lat();
                 placeLon = element.lon();
-            } 
+            }
             // 2. Fall back to the nested center block
             else if (element.center() != null) {
-                // By pulling the values into temporary variables first, 
-                // we handle both primitive double and Double object scenarios safely.
                 Object rawLat = element.center().lat();
                 Object rawLon = element.center().lon();
 
