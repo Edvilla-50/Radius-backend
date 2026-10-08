@@ -28,6 +28,8 @@ public class OverpassPlacesService {
     // Tried in order. The last one that worked is tried first next time.
     // These are community-run servers; swap any that go away.
     private static final List<String> OVERPASS_URLS = List.of(
+            "https://z.overpass-api.de/api/interpreter",
+            "https://lz4.overpass-api.de/api/interpreter",
             "https://overpass-api.de/api/interpreter",
             "https://overpass.kumi.systems/api/interpreter",
             "https://overpass.private.coffee/api/interpreter"
