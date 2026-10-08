@@ -117,15 +117,18 @@ public class MeetLocationService {
 }
 
     public void clearLocation(int matchId) {
-        MeetLocation existing = repo.findByMatchId(matchId);
-        if (existing != null) repo.delete(existing);
+    MeetLocation existing = repo.findByMatchId(matchId);
+    if (existing != null && !existing.isCancelled()) {
+        repo.delete(existing);
+        }
     }
 
     public void cancelLocation(int matchId) {
-        MeetLocation existing = repo.findByMatchId(matchId);
-        if (existing != null) {
-            existing.setCancelled(true);
-            repo.save(existing);
-        }
+    MeetLocation existing = repo.findByMatchId(matchId);
+    if (existing == null) {
+        existing = new MeetLocation(matchId, 0, "", "", "", 0.0, 0.0);
+    }
+        existing.setCancelled(true);
+        repo.save(existing);
     }
 }
