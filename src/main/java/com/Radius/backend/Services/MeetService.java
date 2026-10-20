@@ -1,16 +1,17 @@
 package com.Radius.backend.Services;
-import com.Radius.backend.Services.OverpassPlacesService;
+
 import com.Radius.backend.Bases.MeetRequestRepository;
 import com.Radius.backend.Bases.UserRepository;
 import com.Radius.backend.Entity.InterestEntity;
 import com.Radius.backend.Entity.MeetRequest;
 import com.Radius.backend.Entity.User;
 import com.Radius.backend.dto.SuggestionsResponse;
-import com.Radius.backend.Services.OverpassPlacesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Service
 public class MeetService {
@@ -27,8 +28,14 @@ public class MeetService {
     @Autowired
     private OverpassPlacesService overpassPlacesService;
 
-    // matchId → cached suggestions (SYNC FIX)
-    private final Map<Integer, Map<String, Object>> suggestionsCache = new HashMap<>();
+    // matchId -> cached suggestions. Only non-empty results are cached, and
+    // entries expire so a bad/stale result can't stick around forever.
+    private final Map<Integer, Map<String, Object>> suggestionsCache = new ConcurrentHashMap<>();
+    private final Map<Integer, Long> suggestionsCachedAt = new ConcurrentHashMap<>();
+    private static final long CACHE_TTL_MS = 30 * 60 * 1000L;
+
+    // One lock per match so both phones share one lookup, without blocking other matches.
+    private final Map<Integer, Object> suggestionLocks = new ConcurrentHashMap<>();
 
     // ---------------- CREATE REQUEST ----------------
 
@@ -152,7 +159,7 @@ public class MeetService {
         return null;
     }
 
-    // ---------------- IS MUTUAL (FIXED) ----------------
+    // ---------------- IS MUTUAL ----------------
 
     public boolean isMutual(int a, int b) {
 
@@ -171,7 +178,7 @@ public class MeetService {
         return aAccepted && bAccepted;
     }
 
-    // ---------------- CLEAR LOCATION (FIXED) ----------------
+    // ---------------- CLEAR LOCATION ----------------
 
     @org.springframework.transaction.annotation.Transactional
     public void clearMeetLocation(int matchId) {
@@ -186,6 +193,8 @@ public class MeetService {
         repo.flush();
 
         suggestionsCache.remove(matchId);
+        suggestionsCachedAt.remove(matchId);
+        suggestionLocks.remove(matchId);
     }
 
     // ---------------- MATCH STATUS ----------------
@@ -215,55 +224,116 @@ public class MeetService {
 
     // ---------------- SYNCED SUGGESTIONS ----------------
 
-    public synchronized Map<String, Object> getSuggestionsForMatch(int userA, int userB, int matchId) {
-        if (suggestionsCache.containsKey(matchId)) {
-            return suggestionsCache.get(matchId);
+    private Map<String, Object> getCachedSuggestions(int matchId) {
+        Map<String, Object> cached = suggestionsCache.get(matchId);
+        Long at = suggestionsCachedAt.get(matchId);
+        if (cached != null && at != null
+                && System.currentTimeMillis() - at < CACHE_TTL_MS) {
+            return cached;
         }
+        return null;
+    }
 
-        Map<String, Double> mid = getMidpoint(userA, userB);
-        double lat = mid.get("lat");
-        double lon = mid.get("lon");
+    public Map<String, Object> getSuggestionsForMatch(int userA, int userB, int matchId) {
 
-        List<String> shared = getSharedCategories(userA, userB);
-        Map<String, Object> result;
+        // Fast path: already computed for this match.
+        Map<String, Object> cached = getCachedSuggestions(matchId);
+        if (cached != null) return cached;
 
-        if (shared.isEmpty()) {
-            result = getSuggestions(lat, lon);
-        } else {
-            // FIX: Convert category string to the mapper's unified dictionary key string
-            String targetKey = mapCategoryToQuery(shared.get(0));
-            
-            // FIX: Map dictionary key to true structural raw OSM tag queries via your static util class
-            List<Map<String, String>> filters = InterestTagMapper.resolveTagFilters(List.of(targetKey));
+        // Both phones for the same match queue up here, so Overpass is only hit once.
+        Object lock = suggestionLocks.computeIfAbsent(matchId, k -> new Object());
 
-            if (filters.isEmpty()) {
+        synchronized (lock) {
+            cached = getCachedSuggestions(matchId);
+            if (cached != null) return cached;
+
+            Map<String, Double> mid = getMidpoint(userA, userB);
+            double lat = mid.get("lat");
+            double lon = mid.get("lon");
+
+            List<String> shared = getSharedCategories(userA, userB);
+            Map<String, Object> result;
+
+            if (shared.isEmpty()) {
                 result = getSuggestions(lat, lon);
             } else {
-                // FIX: Route structured tag mappings to your Overpass client system
-                result = getSuggestionsByQuery(lat, lon, filters);
+                String targetKey = mapCategoryToQuery(shared.get(0));
+                List<Map<String, String>> filters =
+                        InterestTagMapper.resolveTagFilters(List.of(targetKey));
+
+                if (filters.isEmpty()) {
+                    result = getSuggestions(lat, lon);
+                } else {
+                    result = getSuggestionsByQuery(lat, lon, filters);
+                }
+
+                List<?> results = (List<?>) result.get("results");
+                if (results == null || results.isEmpty()) {
+                    result = getSuggestions(lat, lon);
+                }
             }
 
-            List<?> results = (List<?>) result.get("results");
-            if (results == null || results.isEmpty()) {
-                result = getSuggestions(lat, lon);
+            List<?> finalResults = (List<?>) result.get("results");
+            int count = finalResults == null ? 0 : finalResults.size();
+            System.out.println("Suggestions for match " + matchId + ": " + count + " results");
+
+            // Never cache an empty answer, so the next request tries again.
+            if (count > 0) {
+                suggestionsCache.put(matchId, result);
+                suggestionsCachedAt.put(matchId, System.currentTimeMillis());
+            }
+
+            return result;
+        }
+    }
+
+    public Map<String, Object> getOrCreateSuggestions(int userA, int userB, int matchId) {
+        return getSuggestionsForMatch(userA, userB, matchId);
+    }
+
+    // ---------------- OVERPASS (with retry) ----------------
+
+    // Overpass times out / rate-limits often. Retry, and treat an empty result as a
+    // failure too, since the service may swallow errors and return an empty list.
+    private Map<String, Object> fetchWithRetry(int maxAttempts, Supplier<Map<String, Object>> call) {
+        Map<String, Object> last = Map.of("results", List.of());
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                Map<String, Object> r = call.get();
+                List<?> list = (List<?>) r.get("results");
+                if (list != null && !list.isEmpty()) return r;
+                last = r;
+                System.out.println("Overpass attempt " + attempt + " returned no results");
+            } catch (RuntimeException e) {
+                System.out.println("Overpass attempt " + attempt + " failed: " + e);
+            }
+
+            if (attempt < maxAttempts) {
+                try {
+                    Thread.sleep(1000L * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
         }
-
-        suggestionsCache.put(matchId, result);
-        return result;
+        return last;
     }
-
-    // ---------------- OVERPASS ----------------
 
     public Map<String, Object> getSuggestions(double lat, double lon) {
-        SuggestionsResponse response = overpassPlacesService.findNearbyPlaces(lat, lon, 1500);
-        return Map.of("results", response.results());
+        return fetchWithRetry(3, () -> {
+            SuggestionsResponse response = overpassPlacesService.findNearbyPlaces(lat, lon, 1500);
+            return Map.<String, Object>of("results", response.results());
+        });
     }
 
-    // FIX: Changed third parameter type to match InterestTagMapper output payload (List<Map<String, String>>)
     public Map<String, Object> getSuggestionsByQuery(double lat, double lon, List<Map<String, String>> filters) {
-        SuggestionsResponse response = overpassPlacesService.findPlacesForInterests(lat, lon, 1500, filters);
-        return Map.of("results", response.results());
+        return fetchWithRetry(2, () -> {
+            SuggestionsResponse response =
+                    overpassPlacesService.findPlacesForInterests(lat, lon, 1500, filters);
+            return Map.<String, Object>of("results", response.results());
+        });
     }
 
     // ---------------- INTERESTS ----------------
@@ -301,11 +371,7 @@ public class MeetService {
             case "music", "concert" -> "concert";
             case "cinema", "movies" -> "movienights";
             case "bowling" -> "bowling";
-            default -> "foodtours"; // FIX: Default to a registered dictionary fallback key
+            default -> "foodtours";
         };
-    }
-
-    public synchronized Map<String, Object> getOrCreateSuggestions(int userA, int userB, int matchId) {
-        return getSuggestionsForMatch(userA, userB, matchId);
     }
 }

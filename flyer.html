@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radius Flyer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+    .logo-container {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .logo-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    }
+  .flyer {
+    width: 8.5in;
+    height: 11in;
+    background: linear-gradient(160deg, #0a9396 0%, #005f73 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55in 0.6in 0.4in;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* background circle accents */
+  .flyer::before {
+    content: '';
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    top: -150px;
+    right: -150px;
+  }
+  .flyer::after {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    bottom: 80px;
+    left: -80px;
+  }
+
+  /* TOP: logo + app name */
+  .top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 1;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+
+  .app-name {
+    font-size: 52px;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: -1px;
+  }
+
+  .tagline-main {
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    text-align: center;
+    line-height: 1.3;
+    max-width: 5.5in;
+  }
+
+  .tagline-sub {
+    font-size: 15px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.85);
+    text-align: center;
+    max-width: 5in;
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+
+  /* MIDDLE: screenshot + features */
+  .middle {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    z-index: 1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .phone-frame {
+    width: 210px;
+    height: 380px;
+    background: #001219;
+    border-radius: 32px;
+    border: 6px solid rgba(255,255,255,0.25);
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .phone-screen-top {
+    background: #0a9396;
+    padding: 10px 12px 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .phone-screen-top span {
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .phone-map {
+    flex: 1;
+    background: #e8f4f4;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Fake map grid */
+  .phone-map::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(10,147,150,0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(10,147,150,0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .map-road-h {
+    position: absolute;
+    height: 6px;
+    background: white;
+    left: 0; right: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .map-road-v {
+    position: absolute;
+    width: 6px;
+    background: white;
+    top: 0; bottom: 0;
+    box-shadow: 1px 0 3px rgba(0,0,0,0.1);
+  }
+
+  .map-pin {
+    position: absolute;
+    font-size: 22px;
+  }
+
+  .phone-matches {
+    background: rgba(255,255,255,0.95);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .match-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+  }
+
+  .match-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #333;
+    font-weight: 600;
+  }
+
+  .match-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #0a9396;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 9px;
+  }
+
+  .match-pct {
+    color: #0a9396;
+    font-weight: 700;
+    font-size: 9px;
+  }
+
+  .match-btn {
+    background: #52b788;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .phone-bottom {
+    background: #001219;
+    padding: 6px 0 8px;
+    display: flex;
+    justify-content: space-around;
+  }
+
+  .phone-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: rgba(255,255,255,0.5);
+    font-size: 7px;
+  }
+
+  .phone-tab.active { color: #0a9396; }
+  .phone-tab-icon { font-size: 12px; }
+
+  .scan-btn-mock {
+    position: absolute;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0a9396;
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 5px 20px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    box-shadow: 0 3px 10px rgba(10,147,150,0.5);
+  }
+
+  /* Features list */
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 3in;
+  }
+
+  .feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .feature-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .feature-text h3 {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .feature-text p {
+    color: rgba(255,255,255,0.75);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  /* BOTTOM: QR + badges */
+  .bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    z-index: 1;
+    background: rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 18px 28px;
+    gap: 20px;
+  }
+
+  .qr-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .qr-placeholder {
+    width: 90px;
+    height: 90px;
+    background: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+  }
+
+  .qr-placeholder svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .qr-label {
+    color: rgba(255,255,255,0.9);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .qr-label strong {
+    color: white;
+    font-size: 14px;
+    display: block;
+  }
+
+  .badges {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  .badge {
+    background: #000;
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 160px;
+  }
+  .qr-section img {
+  width: 90px;
+  height: 90px;
+  border-radius: 10px;
+  background: white;
+  padding: 4px;
+}
+.phone-frame {
+  width: 280px;
+  height: 500px;
+  background: #001219;
+  border-radius: 32px;
+  border: 6px solid rgba(255,255,255,0.25);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+}
+.feature-text h3 {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.feature-text p {
+  color: rgba(255,255,255,0.95);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+  .badge-icon { font-size: 22px; color: white; }
+
+  .badge-text { color: white; }
+  .badge-text .small { font-size: 9px; opacity: 0.8; display: block; }
+  .badge-text .big { font-size: 14px; font-weight: 700; display: block; }
+
+  .badge.android { background: #1a1a1a; }
+
+  .contact-line {
+    color: rgba(255,255,255,0.7);
+    font-size: 10px;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  @media print {
+    body { margin: 0; }
+    .flyer { width: 8.5in; height: 11in; }
+  }
+</style>
+</head>
+<body>
+<div class="flyer">
+
+  <!-- TOP -->
+  <div class="top">
+    <div class="logo-row">
+      <div class="logo-container">
+        <img src="Untitled Design - 1.jpg" alt="Radius Logo">
+        </div>
+      <div class="app-name">Radius</div>
+    </div>
+    <div class="tagline-main">Meet people near you who share your interests — physically, not virtually.</div>
+    <div class="tagline-sub">No waiting. Just real connection. Express yourself like no other app has let you before, safely.</div>
+  </div>
+
+  <!-- MIDDLE -->
+  <div class="middle">
+
+    <!-- Phone mockup -->
+    <div class="phone-frame">
+    <img src="IMG_4872 (1).png" alt="Radius App Screenshot" style="width:100%; height:100%; object-fit:cover; border-radius:26px;">
+    </div>
+
+    <!-- Features -->
+    <div class="features">
+      <div class="feature-item">
+        <div class="feature-icon">🎯</div>
+        <div class="feature-text">
+          <h3>Interest-Based Matching</h3>
+          <p>Get matched with nearby people who love what you love — coffee, hiking, music, gaming, and more.</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📍</div>
+        <div class="feature-text">
+          <h3>Real Meetups</h3>
+          <p>Pick a spot together. Both people confirm the location before it's locked in.</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🎨</div>
+        <div class="feature-text">
+          <h3>Custom HTML Profile</h3>
+          <p>Build your profile your way, your colors, your layout, your personality.</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🛡️</div>
+        <div class="feature-text">
+          <h3>Built-In Safety</h3>
+          <p>One-tap SOS alerts, live location during meetups, and user reporting tools.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM -->
+ <!-- BOTTOM -->
+<div class="bottom">
+  <div class="qr-section">
+    <img src="image.png" alt="QR Code">
+    <div class="qr-label">
+      <strong>Scan to download</strong>
+      radius-create.com<br>
+      @radius_create on Instagram
+    </div>
+  </div>
+
+  <div class="badges">
+    <div class="badge">
+      <div class="badge-icon"></div>
+      <div class="badge-text">
+        <span class="small">Download on the</span>
+        <span class="big">App Store</span>
+      </div>
+    </div>
+    <div class="badge android">
+      <div class="badge-icon"></div>
+      <div class="badge-text">
+        <span class="small">Android</span>
+        <span class="big">Coming Soon</span>
+      </div>
+    </div>
+    <div class="contact-line">support@radius-create.com</div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
