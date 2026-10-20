@@ -410,7 +410,13 @@ void _recenterMap() {
                       final matchId = (match['id'] as num).toInt();
                       return ListTile(
                         leading: const Icon(Icons.person, color: Colors.blue),
-                        title: Text(match['name']),
+                        title: Text(
+                          match['name']?.toString() ?? 'Unknown user',
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         subtitle: Text(
                           '${(match['score'] * 100).toStringAsFixed(0)}%',
                           style: const TextStyle(
