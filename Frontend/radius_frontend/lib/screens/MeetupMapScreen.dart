@@ -6,6 +6,7 @@ import '../services/ApiService.dart';
 import '../state/AppState.dart';
 import '../screens/EmergencyScreen.dart';
 import 'dart:async';
+import 'ProfilePreviewScreen.dart';
 
 class MeetupMapScreen extends StatefulWidget {
   final int userId;
@@ -269,9 +270,25 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           ],
         ),
         backgroundColor: Colors.green,
+        
         actions: [
           IconButton(
+            icon: const Icon(Icons.person, color: Colors.white),
+            tooltip: "View meetup participant's profile",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfilePreviewScreen(
+                    userId: widget.otherUserId.toString(),
+                  ),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.sos, color: Colors.white),
+            tooltip: "Emergency SOS",
             onPressed: () {
               Navigator.push(
                 context,

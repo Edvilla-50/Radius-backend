@@ -424,7 +424,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                           title: Text(place["name"] ?? "Unknown Place", style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(place["location"]?["formatted_address"] ?? "Address unavailable"),
                           trailing: ElevatedButton(
-                            onPressed: _waitingForRecipient ? null : () => _confirmLocationSelection(place),
+                            onPressed: (!_iAmChooser || _waitingForRecipient)
+                            ? null
+                            : () => _confirmLocationSelection(place),
                             child: const Text("Select"),
                           ),
                         ),

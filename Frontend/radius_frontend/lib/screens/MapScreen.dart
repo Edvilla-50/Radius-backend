@@ -182,6 +182,17 @@ Future<void> _getLocation() async {
     debugPrint('MapScreen _getLocation error: $e');
   }
 }
+void _recenterMap() {
+  if (_myLocation == null) {
+    _getLocation();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Getting your location...')),
+    );
+    return;
+  }
+
+  _mapController.move(_myLocation!, 15.0);
+}
 
   Future<void> _sendRequest(int otherUserId) async {
     try {
@@ -313,7 +324,20 @@ Future<void> _getLocation() async {
                     ),
             ),
           ),
-
+          // Recenter Map Button
+          Positioned(
+            right: 15,
+            bottom: 115,
+            child: FloatingActionButton.small(
+              heroTag: "recenter_map_btn",
+              backgroundColor: Colors.white.withValues(alpha: 0.95),
+              onPressed: _recenterMap,
+              child: const Icon(
+                Icons.my_location,
+                color: Colors.blue,
+              ),
+            ),
+          ),
           // Tutorial Button
           Positioned(
             top: 45,
