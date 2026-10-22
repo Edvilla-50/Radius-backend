@@ -10,6 +10,7 @@ import com.Radius.backend.Entity.MeetRequest;
 import com.Radius.backend.Entity.User;
 import com.Radius.backend.Entity.UserBlock;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -49,13 +50,35 @@ public class UserController {
         this.blockRepository = blockRepository;
     }
 
+    // DEPRECATED: older app versions call this. It no longer stores anything,
+    // so it cannot make a user visible. Location is only stored via /check-in.
     @PostMapping("/{id}/location")
-    public User updateLocation(@PathVariable long id, @RequestBody LocationUpdate location) {
+    public ResponseEntity<?> updateLocation(@PathVariable long id, @RequestBody LocationUpdate location) {
+        return ResponseEntity.ok().build();
+    }
+
+    // MANUAL CHECK-IN: the only way a user's location is stored and shown.
+    @PostMapping("/{id}/check-in")
+    public ResponseEntity<?> checkIn(@PathVariable long id, @RequestBody LocationUpdate location) {
         User user = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("User not found: " + id));
         user.setLat(location.getLat());
         user.setLon(location.getLon());
-        return repo.save(user);
+        user.setGhostMode(false);
+        user.setLastCheckInAt(Instant.now());
+        repo.save(user);
+        return ResponseEntity.ok().build();
+    }
+
+    // CHECK-OUT: hides the user immediately.
+    @PostMapping("/{id}/check-out")
+    public ResponseEntity<?> checkOut(@PathVariable long id) {
+        User user = repo.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found: " + id));
+        user.setGhostMode(true);
+        user.setLastCheckInAt(null);
+        repo.save(user);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping
@@ -121,6 +144,8 @@ public class UserController {
         user.setPassword(encoder.encode(req.getPassword()));
         user.setName(req.getName());
         user.setEmergencyPhone(req.getEmergencyPhone());
+        // New accounts start hidden until they manually check in.
+        user.setGhostMode(true);
         repo.save(user);
 
         return ResponseEntity.ok(Map.of("userId", user.getId()));
@@ -149,11 +174,17 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
+    // Legacy endpoint. Hiding is allowed; it can never make a user visible,
+    // because visibility also requires a recent manual check-in.
     @PostMapping("/{id}/ghost-mode")
     public ResponseEntity<?> updateGhostMode(@PathVariable long id, @RequestBody Map<String, Boolean> body) {
         User user = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("User not found: " + id));
-        user.setGhostMode(body.get("ghostMode"));
+        boolean ghost = Boolean.TRUE.equals(body.get("ghostMode"));
+        user.setGhostMode(ghost);
+        if (ghost) {
+            user.setLastCheckInAt(null);
+        }
         repo.save(user);
         return ResponseEntity.ok().build();
     }

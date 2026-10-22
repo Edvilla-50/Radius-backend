@@ -5,9 +5,14 @@ import com.Radius.backend.Bases.UserRepository;
 import com.Radius.backend.Data_Structres.TraitStack.TraitPopResult;
 import com.Radius.backend.Entity.User;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 public class GetInnocuous {
+
+    // A manual check-in stays valid for this long, then the user is hidden again.
+    public static final long CHECK_IN_MINUTES = 30;
 
     Haversine hs = new Haversine();
     private final UserRepository RepoSearch;
@@ -17,12 +22,22 @@ public class GetInnocuous {
         this.blockRepo = blockRepo;
     }
 
+    // True only if the user manually checked in within the last CHECK_IN_MINUTES
+    // and has not hidden themselves since.
+    public static boolean isCheckedIn(User u) {
+        return !u.isGhostMode()
+            && u.getLastCheckInAt() != null
+            && u.getLastCheckInAt().isAfter(
+                Instant.now().minus(CHECK_IN_MINUTES, ChronoUnit.MINUTES));
+    }
+
     public static double score(int position, int stackSize) {
         return (double)(stackSize - position) / stackSize;
     }
 
     public List <User> compatibility(User me) {
-        if(me.isGhostMode()){
+        // Must be actively checked in to see or be seen by anyone.
+        if(!isCheckedIn(me)){
             return new ArrayList<>();
         }
         double lon = me.getLon();
@@ -47,10 +62,10 @@ public class GetInnocuous {
             double dist = hs.haversine(me.getLat(), me.getLon(), u.getLat(), u.getLon());
             boolean withinRange = dist <= me.getPerferredDistance();
             boolean notMe = !u.getId().equals(me.getId());
-            boolean notGhost = !u.isGhostMode();
+            boolean checkedIn = isCheckedIn(u);
             boolean notBlocked = !blockedByMe.contains(u.getId()) && !blockedMe.contains(u.getId());
 
-            if (withinRange && notMe && notGhost && notBlocked) {
+            if (withinRange && notMe && checkedIn && notBlocked) {
                 trueCan.add(u);
             }
         }

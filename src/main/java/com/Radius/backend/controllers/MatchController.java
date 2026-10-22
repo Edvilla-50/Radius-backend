@@ -8,6 +8,8 @@ import com.Radius.backend.Services.MeetLocationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,9 +27,21 @@ public class MatchController {
         this.meetLocationService = meetLocationService;
     }
 
+    // Returns ONLY the fields the app needs. Never return full User objects here:
+    // that would send other users' exact location, email, phone, and tokens to the phone.
     @GetMapping("/{id}")
-    public List<User> getMatches(@PathVariable long id) {
-        return service.findMyBestMatch(id);
+    public List<Map<String, Object>> getMatches(@PathVariable long id) {
+        List<User> users = service.findMyBestMatch(id);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (User u : users) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", u.getId());
+            m.put("name", u.getName());
+            m.put("age", u.getAge());
+            m.put("score", u.getScore());
+            result.add(m);
+        }
+        return result;
     }
 
     @PostMapping("/meet/request")

@@ -38,8 +38,37 @@ class ApiService {
   }
 
   // ---------------------------
-  // LOCATION
+  // LOCATION / CHECK-IN
   // ---------------------------
+
+  // Manual check-in: the ONLY call that stores the user's location and makes
+  // them visible to others. Must only be triggered by the user tapping SCAN.
+  static Future<void> checkIn(int userId, double lat, double lon) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/user/$userId/check-in"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"lat": lat, "lon": lon}),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to check in");
+    }
+  }
+
+  // Check-out: hides the user immediately.
+  static Future<void> checkOut(int userId) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/user/$userId/check-out"),
+      headers: {"Content-Type": "application/json"},
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to check out");
+    }
+  }
+
+  // DEPRECATED: kept so other screens still compile. The server ignores it.
+  // Do not use for sharing location; use checkIn instead.
   static Future<void> updateLocation(int userId, double lat, double lon) async {
     final url = Uri.parse("$baseUrl/user/$userId/location");
 
@@ -53,7 +82,8 @@ class ApiService {
       throw Exception("Failed to update location");
     }
   }
-    static Future<Map<String, dynamic>> getSyncedSuggestions(
+
+  static Future<Map<String, dynamic>> getSyncedSuggestions(
     int matchId,
     int userA,
     int userB,
@@ -236,7 +266,7 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-    // ---------------------------
+  // ---------------------------
   // SUGGESTIONS / MIDPOINT
   // ---------------------------
 
@@ -414,7 +444,7 @@ class ApiService {
     }
   }
 
- static Future<Map<String, dynamic>> checkMutual(int matchId) async {
+  static Future<Map<String, dynamic>> checkMutual(int matchId) async {
     final url = Uri.parse("$baseUrl/meet/location/mutual/$matchId");
 
     try {
@@ -423,17 +453,18 @@ class ApiService {
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         return jsonDecode(res.body);
       }
-      
+
       // If the backend returns a 404, 500, or empty body, treat it as pending, not expired
       debugPrint("⚠️ Warning: /meet/location/mutual returned status ${res.statusCode}");
       return {"mutual": false, "expired": false, "sosTriggered": false};
-      
+
     } catch (e) {
       debugPrint("Network error checking match mutual status: $e");
       // FIX: Fall back to false flags so the polling timer doesn't break instantly
       return {"mutual": false, "expired": false, "sosTriggered": false};
     }
   }
+
   static Future<void> reportUser(int reporterId, int reportedUserId, String reason, String details) async {
     final url = Uri.parse("$baseUrl/reports/submit");
 
@@ -452,6 +483,7 @@ class ApiService {
       throw Exception("Failed to submit report");
     }
   }
+
   static Future<void> blockUser(int blockerId, int blockedId) async {
     final res = await http.post(
       Uri.parse("$baseUrl/user/$blockerId/block/$blockedId"),
@@ -462,6 +494,7 @@ class ApiService {
       throw Exception("Failed to block user");
     }
   }
+
   static Future<void> deleteAccount(int userId) async {
     final res = await http.delete(
       Uri.parse("$baseUrl/user/$userId"),

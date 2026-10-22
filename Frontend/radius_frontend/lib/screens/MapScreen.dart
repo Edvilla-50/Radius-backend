@@ -3,7 +3,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
 import '../services/ApiService.dart';
@@ -21,84 +20,68 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   LatLng? _myLocation;
   List<dynamic> _matches = [];
   bool _scanning = false;
-  bool _ghostMode = false;
-  bool _ghostModeLoading = false;
-  bool _locationSharingConsented = false;
+  bool _checkedIn = false;
+  Timer? _expiryTimer;
   final MapController _mapController = MapController();
   StreamSubscription<Position>? _locationStream;
+
+  // How long a manual check-in stays active before the user is hidden again.
+  static const Duration _checkInDuration = Duration(minutes: 30);
 
   @override
   void initState() {
     super.initState();
-    _initLocationWithConsent();
-    _loadGhostMode();
+    WidgetsBinding.instance.addObserver(this);
+    // Local map display only. Location is NEVER sent to the backend here.
+    _getLocation();
+    // Always start hidden. The user must manually check in with SCAN.
+    _checkOut();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _expiryTimer?.cancel();
     _locationStream?.cancel();
     _locationStream = null;
+    // Best-effort hide when leaving the screen.
+    ApiService.checkOut(widget.userId).catchError((e) {
+      debugPrint('MapScreen dispose hide error: $e');
+    });
     super.dispose();
   }
 
-  Future<void> _initLocationWithConsent() async {
-    final prefs = await SharedPreferences.getInstance();
-    final alreadyConsented = prefs.getBool('locationSharingConsented') ?? false;
-
-    if (alreadyConsented) {
-      setState(() => _locationSharingConsented = true);
-      _getLocation();
-      return;
-    }
-
-    // Show consent dialog on first use
-    if (!mounted) return;
-    final consented = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Allow Location Sharing?'),
-        content: const Text(
-          'Radius shows your location to nearby users so you can meet up. '
-          'You can hide yourself at any time using Ghost Mode.\n\n'
-          'Do you want to be visible to nearby users?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('No, keep me hidden'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes, show me'),
-          ),
-        ],
-      ),
-    );
-
-    final agreed = consented ?? false;
-    await prefs.setBool('locationSharingConsented', agreed);
-
-    if (!mounted) return;
-    setState(() => _locationSharingConsented = agreed);
-
-    if (agreed) {
-      _getLocation();
-    } else {
-      // User declined — enable ghost mode so they're hidden from scans
-      await ApiService.updateGhostMode(widget.userId, true);
-      if (mounted) setState(() => _ghostMode = true);
-      // Still get GPS for the map display, just don't share it
-      _getLocationSilent();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _checkOut();
     }
   }
 
-  // Gets GPS for local map display only — does NOT send to backend
-  Future<void> _getLocationSilent() async {
+  // Check out = hide from other users. Reuses the ghost mode endpoint
+  // (ghostMode == true means hidden / not checked in).
+  Future<void> _checkOut() async {
+    _expiryTimer?.cancel();
+    _expiryTimer = null;
+    try {
+      await ApiService.checkOut(widget.userId);
+    } catch (e) {
+      debugPrint('MapScreen _checkOut error: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _checkedIn = false;
+      _matches = [];
+    });
+  }
+
+  // Gets GPS for local map display only. Does NOT send anything to the backend.
+  Future<void> _getLocation() async {
     try {
       await Geolocator.requestPermission();
       final position = await Geolocator.getCurrentPosition();
@@ -107,92 +90,37 @@ class _MapScreenState extends State<MapScreen> {
         _myLocation = LatLng(position.latitude, position.longitude);
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+        if (!mounted || _myLocation == null) return;
         _mapController.move(_myLocation!, 15.0);
       });
-    } catch (e) {
-      debugPrint('MapScreen _getLocationSilent error: $e');
-    }
-  }
-
-  Future<void> _loadGhostMode() async {
-    try {
-      final user = await ApiService.getUser(widget.userId);
-      if (!mounted) return;
-      setState(() {
-        _ghostMode = user["ghostMode"] == true;
-      });
-    } catch (e) {
-      debugPrint('MapScreen _loadGhostMode error: $e');
-    }
-  }
-
-  Future<void> _toggleGhostMode() async {
-    final newValue = !_ghostMode;
-    setState(() => _ghostModeLoading = true);
-    try {
-      await ApiService.updateGhostMode(widget.userId, newValue);
-      if (!mounted) return;
-      setState(() {
-        _ghostMode = newValue;
-        _ghostModeLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(newValue ? 'Ghost mode on — you\'re hidden' : 'Ghost mode off'),
+      await _locationStream?.cancel();
+      _locationStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
         ),
-      );
-      if (newValue) {
-        _scan();
-      }
+      ).listen((Position position) {
+        if (!mounted) return;
+        setState(() {
+          _myLocation = LatLng(position.latitude, position.longitude);
+        });
+        // Intentionally NOT pushing to backend.
+      });
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _ghostModeLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update ghost mode')),
-      );
+      debugPrint('MapScreen _getLocation error: $e');
     }
   }
 
-Future<void> _getLocation() async {
-  try {
-    await Geolocator.requestPermission();
-    final position = await Geolocator.getCurrentPosition();
-    if (!mounted) return;
-    setState(() {
-      _myLocation = LatLng(position.latitude, position.longitude);
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _mapController.move(_myLocation!, 15.0);
-    });
-    _locationStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    ).listen((Position position) async {
-      if (!mounted) return;
-      setState(() {
-        _myLocation = LatLng(position.latitude, position.longitude);
-      });
-      // No longer pushing to backend here
-    });
-  } catch (e) {
-    debugPrint('MapScreen _getLocation error: $e');
+  void _recenterMap() {
+    if (_myLocation == null) {
+      _getLocation();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Getting your location...')),
+      );
+      return;
+    }
+    _mapController.move(_myLocation!, 15.0);
   }
-}
-void _recenterMap() {
-  if (_myLocation == null) {
-    _getLocation();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Getting your location...')),
-    );
-    return;
-  }
-
-  _mapController.move(_myLocation!, 15.0);
-}
 
   Future<void> _sendRequest(int otherUserId) async {
     try {
@@ -209,29 +137,69 @@ void _recenterMap() {
     }
   }
 
+  // SCAN is the ONLY way a user's location is shared. Every new check-in
+  // requires explicit confirmation, and it expires automatically.
   Future<void> _scan() async {
-  if (!mounted) return;
-  setState(() => _scanning = true);
-  try {
-    // Manual check-in — only share location when user taps SCAN
-    if (_myLocation != null) {
-      await ApiService.updateLocation(
+    if (!mounted) return;
+
+    // Require a fresh confirmation for each new check-in.
+    if (!_checkedIn) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Check in?'),
+          content: const Text(
+            'Your location will be visible to nearby Radius users for '
+            '30 minutes, or until you tap Stop Sharing or close the app.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Check in'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    setState(() => _scanning = true);
+    try {
+      // Always use a fresh fix; never share a stale or missing location.
+      final position = await Geolocator.getCurrentPosition();
+      _myLocation = LatLng(position.latitude, position.longitude);
+
+      // Server marks the user visible only as a result of this manual action.
+      await ApiService.checkIn(
         widget.userId,
-        _myLocation!.latitude,
-        _myLocation!.longitude,
+        position.latitude,
+        position.longitude,
+      );
+      final matches = await ApiService.getMatches(widget.userId);
+
+      _expiryTimer?.cancel();
+      _expiryTimer = Timer(_checkInDuration, _checkOut);
+
+      if (!mounted) return;
+      setState(() {
+        _matches = matches;
+        _checkedIn = true;
+        _scanning = false;
+      });
+    } catch (e) {
+      debugPrint('MapScreen _scan error: $e');
+      if (!mounted) return;
+      setState(() => _scanning = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not check in. Please try again.')),
       );
     }
-    final matches = await ApiService.getMatches(widget.userId);
-    if (!mounted) return;
-    setState(() {
-      _matches = matches;
-      _scanning = false;
-    });
-  } catch (e) {
-    if (!mounted) return;
-    setState(() => _scanning = false);
   }
-}
 
   void _showPlaylistEasterEgg() {
     showDialog(
@@ -289,9 +257,9 @@ void _recenterMap() {
                       point: _myLocation!,
                       width: 40,
                       height: 40,
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_pin_circle,
-                        color: Colors.blue,
+                        color: _checkedIn ? Colors.blue : Colors.grey,
                         size: 40,
                       ),
                     ),
@@ -300,30 +268,52 @@ void _recenterMap() {
             ],
           ),
 
-          // Ghost Mode Button
+          // Status banner
           Positioned(
             top: 45,
-            right: 70,
-            child: FloatingActionButton.small(
-              heroTag: "ghost_mode_btn",
-              backgroundColor: _ghostMode
-                  ? Colors.deepPurple
-                  : Colors.white.withValues(alpha: 0.9),
-              onPressed: _ghostModeLoading ? null : _toggleGhostMode,
-              child: _ghostModeLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      _ghostMode
-                          ? Icons.visibility_off
-                          : Icons.visibility_off_outlined,
-                      color: _ghostMode ? Colors.white : Colors.blue,
+            left: 15,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _checkedIn ? Icons.location_on : Icons.location_off,
+                    size: 16,
+                    color: _checkedIn ? Colors.green : Colors.grey,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _checkedIn ? 'Checked in' : 'Hidden',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
+                  ),
+                ],
+              ),
             ),
           ),
+
+          // Stop Sharing Button (only while checked in)
+          if (_checkedIn)
+            Positioned(
+              top: 45,
+              right: 70,
+              child: FloatingActionButton.small(
+                heroTag: "stop_sharing_btn",
+                backgroundColor: Colors.deepPurple,
+                tooltip: 'Stop sharing',
+                onPressed: _checkOut,
+                child: const Icon(Icons.location_off, color: Colors.white),
+              ),
+            ),
+
           // Recenter Map Button
           Positioned(
             right: 15,
@@ -338,6 +328,7 @@ void _recenterMap() {
               ),
             ),
           ),
+
           // Tutorial Button
           Positioned(
             top: 45,

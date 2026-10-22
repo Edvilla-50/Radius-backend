@@ -35,8 +35,11 @@ class MeetupMapScreen extends StatefulWidget {
 class _MeetupMapScreenState extends State<MeetupMapScreen> {
   final MapController _mapController = MapController();
 
+  // Own location is used for LOCAL display only. It is never sent to the
+  // server from this screen, and the other user's location is never fetched
+  // or shown. Location is shared only through the manual check-in on the
+  // main map screen.
   LatLng? _myLocation;
-  LatLng? _otherLocation;
   LatLng? _placeLocation;
 
   Timer? _pollTimer;
@@ -128,12 +131,9 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
       }
 
       await _startMyLocation();
-      await _fetchOtherLocation();
 
       _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
         if (_navigated) return;
-
-        await _fetchOtherLocation();
 
         try {
           final res = await ApiService.checkMutual(widget.matchId);
@@ -193,6 +193,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
     }
   }
 
+  // Local display only: nothing is sent to the backend from here.
   Future<void> _startMyLocation() async {
     try {
       await Geolocator.requestPermission();
@@ -207,51 +208,19 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
         });
       }
 
-      await ApiService.updateLocation(
-        widget.userId,
-        position.latitude,
-        position.longitude,
-      );
-
       _locationStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,
         ),
-      ).listen((pos) async {
-        if (_navigated) return;
-
-        if (mounted) {
-          setState(() {
-            _myLocation = LatLng(pos.latitude, pos.longitude);
-          });
-        }
-
-        await ApiService.updateLocation(
-          widget.userId,
-          pos.latitude,
-          pos.longitude,
-        );
+      ).listen((pos) {
+        if (_navigated || !mounted) return;
+        setState(() {
+          _myLocation = LatLng(pos.latitude, pos.longitude);
+        });
       });
     } catch (e) {
       debugPrint("_startMyLocation error: $e");
-    }
-  }
-
-  Future<void> _fetchOtherLocation() async {
-    try {
-      final user = await ApiService.getUser(widget.otherUserId);
-
-      final lat = (user["lat"] as num?)?.toDouble();
-      final lon = (user["lon"] as num?)?.toDouble();
-
-      if (lat != null && lon != null && mounted && !_navigated) {
-        setState(() {
-          _otherLocation = LatLng(lat, lon);
-        });
-      }
-    } catch (e) {
-      debugPrint("_fetchOtherLocation error: $e");
     }
   }
 
@@ -270,7 +239,7 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
           ],
         ),
         backgroundColor: Colors.green,
-        
+
         actions: [
           IconButton(
             icon: const Icon(Icons.person, color: Colors.white),
@@ -338,17 +307,6 @@ class _MeetupMapScreenState extends State<MeetupMapScreen> {
                             child: const Icon(
                               Icons.person_pin_circle,
                               color: Colors.blue,
-                              size: 40,
-                            ),
-                          ),
-                        if (_otherLocation != null)
-                          Marker(
-                            point: _otherLocation!,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.person_pin_circle,
-                              color: Colors.orange,
                               size: 40,
                             ),
                           ),
