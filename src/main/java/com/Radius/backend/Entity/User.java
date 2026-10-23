@@ -1,12 +1,13 @@
 package com.Radius.backend.Entity;
-import jakarta.persistence.*;//needed for that sweet sweet polymorphism
+
+import jakarta.persistence.*;
 import java.time.Instant;
-import java.util.List;//To not duplicate hobbies
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.Radius.backend.Aspects.Interests;
 import com.Radius.backend.Data_Structres.TraitStack;
 import com.Radius.backend.Data_Structres.TraitStack.TraitPopResult;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -15,11 +16,14 @@ public class User {
     private Long id;
     private String name;
     private int age;
-    // JsonIgnore: exact coordinates are never sent in API responses.
-    @JsonIgnore
+
+    // WRITE_ONLY: accepted when received in requests, never sent back in API responses.
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private double lon;
-    @JsonIgnore
+    
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private double lat;
+
     private double perferredDistance;
     private int minAgePref;
     private int maxAgePref;
@@ -41,6 +45,7 @@ public class User {
     private String password;
 
     private String fcmToken;
+    
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "user_interests",
@@ -48,11 +53,13 @@ public class User {
         inverseJoinColumns = @JoinColumn(name = "interest_id")
     )
     @OrderColumn(name = "order_index")
-    private List<InterestEntity> interests; //FIX to the polymorphism (at least faked)that JPA for some reason did not like
+    private List<InterestEntity> interests;
+
     @Column(columnDefinition = "TEXT")
     private String htmlProfile;
 
     public User() {}
+
     public User(String name, int age, List<InterestEntity> interests) {
         this.name = name;
         this.age = age;
@@ -62,105 +69,138 @@ public class User {
     public Long getId() {
         return id;
     }
+
     public String getName() {
         return name;
     }
+
     public void setName(String name) {
         this.name = name;
     }
+
     public int getAge() {
         return age;
     }
+
     public List<InterestEntity> getInterests() {
         return interests;
     }
+
     public void setInterests(List<InterestEntity> interests) {
         this.interests = interests;
     }
+
     public double getLat(){
         return this.lat;
     }
+
     public void setLat(double lat){
         this.lat = lat;
     }
+
     public void setLon(double lon){
         this.lon = lon;
     }
+
     public void setPerferredDistance(double perferredDistance){
         this.perferredDistance = perferredDistance;
     }
+
     public double getLon(){
         return this.lon;
     }
+
     public double getPerferredDistance(){
         return this.perferredDistance;
     }
+
     public int getMinAgePref(){
         return this.minAgePref;
     }
+
     public int getMaxAgePref(){
         return this.maxAgePref;
     }
+
     public boolean isGhostMode(){
         return this.ghostMode;
     }
+
     public void setGhostMode(boolean ghostMode){
         this.ghostMode = ghostMode;
     }
+
     public Instant getLastCheckInAt() {
         return lastCheckInAt;
     }
+
     public void setLastCheckInAt(Instant lastCheckInAt) {
         this.lastCheckInAt = lastCheckInAt;
     }
+
     public void pushAllIntrestsToStack(){
         stack = new TraitStack();
         for (int i = this.interests.size() - 1; i >= 0; i--) {
             stack.push(this.interests.get(i).getName());
         }
     }
+
     public TraitPopResult popOnStack(){
         return stack.pop();
     }
+
     public int getStackSize(){
         return stack.getLength();
     }
+
     public void setScore(double score){
         this.score = score;
     }
+
     public double getScore(){
         return this.score;
     }
+
     public void resetScore(){
         this.score = 0;
     }
+
     public String getEmergencyPhone() {
         return emergencyPhone;
     }
+
     public void setEmergencyPhone(String emergencyPhone) {
         this.emergencyPhone = emergencyPhone;
     }
+
     public String getHtmlProfile(){
         return this.htmlProfile;
     }
+
     public void setHtmlProfile(String htmlProfile){
         this.htmlProfile = htmlProfile;
     }
+
     public String getEmail() {
         return email;
     }
+
     public void setEmail(String email) {
         this.email = email;
     }
+
     public String getPassword() {
         return password;
     }
+
     public void setPassword(String password) {
         this.password = password;
     }
+
     public String getFcmToken() {
         return fcmToken;
     }
+
     public void setFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
     }
