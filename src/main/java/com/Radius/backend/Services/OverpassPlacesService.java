@@ -22,10 +22,9 @@ public class OverpassPlacesService {
 
     private static final String GEOAPIFY_URL = "https://api.geoapify.com/v2/places";
 
-    // FIXED: Replaced unsupported "activity.fitness_club" with valid "sport.fitness.gym"
+    // FIXED: Removed invalid "sport_center"
     private static final String DEFAULT_CATEGORIES = 
-            "catering.cafe,catering.restaurant,catering.bar,catering.pub,catering.fast_food,education.library,leisure.park,sport.fitness.gym,sport_center";
-
+            "catering.cafe,catering.restaurant,catering.bar,catering.pub,catering.fast_food,education.library,leisure.park,sport.fitness.gym,sport";
     private static final long CACHE_TTL_MS = 6 * 60 * 60 * 1000L;
 
     private record CachedPlaces(List<SuggestedPlace> places, long cachedAt) {}
