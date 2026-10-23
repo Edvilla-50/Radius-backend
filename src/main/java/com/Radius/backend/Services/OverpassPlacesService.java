@@ -100,41 +100,48 @@ public class OverpassPlacesService {
                     .toUriString();
 
             System.out.println("Calling Geoapify API with categories: " + categories);
-            ResponseEntity<JsonNode> response = restTemplate.getForEntity(url, JsonNode.class);
-            JsonNode root = response.getBody();
+            
+            // FETCH AS STRING INSTEAD OF JsonNode DIRECTLY
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            String jsonBody = response.getBody();
 
-            if (root != null && root.has("features")) {
-                for (JsonNode feature : root.get("features")) {
-                    JsonNode properties = feature.get("properties");
-                    JsonNode geometry = feature.get("geometry");
+            if (jsonBody != null) {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                JsonNode root = mapper.readTree(jsonBody);
 
-                    if (properties == null || geometry == null) continue;
+                if (root != null && root.has("features")) {
+                    for (JsonNode feature : root.get("features")) {
+                        JsonNode properties = feature.get("properties");
+                        JsonNode geometry = feature.get("geometry");
 
-                    String name = properties.has("name") ? properties.get("name").asText() : null;
-                    if (name == null || name.equalsIgnoreCase("unbranded")) continue;
+                        if (properties == null || geometry == null) continue;
 
-                    String placeId = properties.has("place_id") ? properties.get("place_id").asText() : java.util.UUID.randomUUID().toString();
-                    String address = properties.has("formatted") ? properties.get("formatted").asText() : "Address unavailable";
+                        String name = properties.has("name") ? properties.get("name").asText() : null;
+                        if (name == null || name.equalsIgnoreCase("unbranded")) continue;
 
-                    JsonNode coords = geometry.get("coordinates");
-                    if (coords == null || coords.size() < 2) continue;
+                        String placeId = properties.has("place_id") ? properties.get("place_id").asText() : java.util.UUID.randomUUID().toString();
+                        String address = properties.has("formatted") ? properties.get("formatted").asText() : "Address unavailable";
 
-                    double placeLon = coords.get(0).asDouble();
-                    double placeLat = coords.get(1).asDouble();
+                        JsonNode coords = geometry.get("coordinates");
+                        if (coords == null || coords.size() < 2) continue;
 
-                    places.add(new SuggestedPlace(
-                            placeId,
-                            name,
-                            new PlaceLocation(address),
-                            placeLat,
-                            placeLon
-                    ));
+                        double placeLon = coords.get(0).asDouble();
+                        double placeLat = coords.get(1).asDouble();
+
+                        places.add(new SuggestedPlace(
+                                placeId,
+                                name,
+                                new PlaceLocation(address),
+                                placeLat,
+                                placeLon
+                        ));
+                    }
                 }
             }
             System.out.println("Geoapify success: found " + places.size() + " places.");
         } catch (Exception e) {
             System.err.println("Geoapify request failed: " + e.getMessage());
-            // SAFETY FALLBACK: If a custom category fails with 400 Bad Request, retry once using safe defaults
+            // SAFETY FALLBACK: If categories fail or throw error, retry once using defaults
             if (!categories.equals(DEFAULT_CATEGORIES)) {
                 System.out.println("Retrying with default safe categories...");
                 return callGeoapify(lat, lon, radius, DEFAULT_CATEGORIES);
