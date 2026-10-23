@@ -59,11 +59,19 @@ public class UserController {
 
     // MANUAL CHECK-IN: the only way a user's location is stored and shown.
     @PostMapping("/{id}/check-in")
-    public ResponseEntity<?> checkIn(@PathVariable long id, @RequestBody LocationUpdate location) {
+    public ResponseEntity<?> checkIn(@PathVariable long id, @RequestBody Map<String, Double> location) {
         User user = repo.findById(id)
             .orElseThrow(() -> new RuntimeException("User not found: " + id));
-        user.setLat(location.getLat());
-        user.setLon(location.getLon());
+        
+        Double lat = location.get("lat");
+        Double lon = location.get("lon");
+        
+        if (lat == null || lon == null) {
+            return ResponseEntity.badRequest().body("Latitude and longitude are required");
+        }
+
+        user.setLat(lat);
+        user.setLon(lon);
         user.setGhostMode(false);
         user.setLastCheckInAt(Instant.now());
         repo.save(user);
