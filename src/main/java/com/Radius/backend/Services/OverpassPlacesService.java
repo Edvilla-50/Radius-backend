@@ -52,17 +52,18 @@ public class OverpassPlacesService {
     private final RestTemplate restTemplate;
 
     public OverpassPlacesService() {
-        // Own RestTemplate so a slow server can't hang a request (and the match lock) forever.
+        // Own RestTemplate with increased timeouts and redirect handling
         HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
+                .connectTimeout(Duration.ofSeconds(15))
+                .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
-        factory.setReadTimeout(Duration.ofSeconds(30));
+        factory.setReadTimeout(Duration.ofSeconds(60));
         this.restTemplate = new RestTemplate(factory);
     }
 
     public SuggestionsResponse findPlacesForInterests(double lat, double lon, int radius, List<Map<String, String>> tagFilters) {
-
+        radius = Math.max(100, Math.min(radius, 5000));
         List<SuggestedPlace> places = List.of();
 
         if (!tagFilters.isEmpty()) {
@@ -78,6 +79,7 @@ public class OverpassPlacesService {
     }
 
     public SuggestionsResponse findNearbyPlaces(double lat, double lon, int radius) {
+        radius = Math.max(100, Math.min(radius, 5000));
         String key = cacheKey(lat, lon, radius, "fallback");
         return new SuggestionsResponse(lookup(key, buildFallbackQuery(lat, lon, radius)));
     }
@@ -111,6 +113,10 @@ public class OverpassPlacesService {
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         headers.set(HttpHeaders.USER_AGENT, USER_AGENT);
+        headers.set(HttpHeaders.REFERER, "https://radius-create.com");
+        
+        // Avoid reusing potentially bad keep-alive connections.
+        headers.set("Connection", "close");
 
         HttpEntity<String> request = new HttpEntity<>(
                 "data=" + URLEncoder.encode(query, StandardCharsets.UTF_8), headers);
@@ -122,16 +128,23 @@ public class OverpassPlacesService {
             int idx = (start + i) % OVERPASS_URLS.size();
             String url = OVERPASS_URLS.get(idx);
             try {
+                System.out.println("Trying Overpass endpoint: " + url);
                 OverpassResponse response =
                         restTemplate.postForObject(url, request, OverpassResponse.class);
-                if (response != null) {
+                if (response != null && response.elements() != null) {
+                    System.out.println(
+                            "Overpass success from " + url +
+                                    " with " + response.elements().size() +
+                                    " elements"
+                    );
                     preferredIndex = idx;
                     return response;
                 }
-                System.out.println("Overpass " + url + " returned an empty body");
-            } catch (RuntimeException e) {
-                lastError = e;
-                System.out.println("Overpass " + url + " failed: " + e);
+                System.out.println("Overpass " + url + " returned null or empty response");
+            } catch (Exception e) {
+                lastError = new RuntimeException(e);
+                System.err.println("Overpass " + url + " failed: " + e.getClass().getName());
+                e.printStackTrace();
             }
         }
 
@@ -144,7 +157,7 @@ public class OverpassPlacesService {
 
     private String buildInterestQuery(double lat, double lon, int radius, List<Map<String, String>> tagFilters) {
         StringBuilder qb = new StringBuilder();
-        qb.append("[out:json][timeout:25];\n(\n");
+        qb.append("[out:json][timeout:15];\n(\n");
 
         for (Map<String, String> filter : tagFilters) {
             qb.append("  nwr");
@@ -154,24 +167,24 @@ public class OverpassPlacesService {
             qb.append(String.format(Locale.US, "(around:%d,%f,%f);%n", radius, lat, lon));
         }
 
-        qb.append(");\nout body center;\n");
+        qb.append(");\nout center;\n");
         return qb.toString();
     }
 
     private String buildFallbackQuery(double lat, double lon, int radius) {
         return String.format(Locale.US, """
-                [out:json][timeout:25];
+                [out:json][timeout:15];
                 (
                   nwr["amenity"~"%s"](around:%d,%f,%f);
                   nwr["leisure"~"%s"](around:%d,%f,%f);
                 );
-                out body center;
+                out center;
                 """,
                 AMENITY_TAGS, radius, lat, lon,
                 LEISURE_TAGS, radius, lat, lon);
     }
 
-    // ---------------- MAPPING (unchanged) ----------------
+    // ---------------- MAPPING ----------------
 
     private List<SuggestedPlace> mapToSuggestedPlaces(OverpassResponse response) {
         List<SuggestedPlace> places = new ArrayList<>();
