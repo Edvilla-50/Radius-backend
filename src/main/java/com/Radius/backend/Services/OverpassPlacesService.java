@@ -1,64 +1,46 @@
 package com.Radius.backend.Services;
 
-import com.Radius.backend.dto.OverpassElement;
-import com.Radius.backend.dto.OverpassResponse;
 import com.Radius.backend.dto.PlaceLocation;
 import com.Radius.backend.dto.SuggestedPlace;
 import com.Radius.backend.dto.SuggestionsResponse;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 @Service
 public class OverpassPlacesService {
 
-    // Tried in order. The last one that worked is tried first next time.
-    // These are community-run servers; swap any that go away.
-    private static final List<String> OVERPASS_URLS = List.of(
-            "https://z.overpass-api.de/api/interpreter",
-            "https://lz4.overpass-api.de/api/interpreter",
-            "https://overpass-api.de/api/interpreter",
-            "https://overpass.kumi.systems/api/interpreter",
-            "https://overpass.private.coffee/api/interpreter"
-    );
+    private static final String GEOAPIFY_URL = "https://api.geoapify.com/v2/places";
 
-    // Overpass operators block anonymous/default Java user agents.
-    private static final String USER_AGENT =
-            "Radius/1.0 (+https://radius-create.com; support@radius-create.com)";
-
-    private static final String AMENITY_TAGS = "cafe|restaurant|bar|pub|fast_food|library";
-    private static final String LEISURE_TAGS = "park|fitness_centre|sports_centre";
+    // Geoapify category mappings for interests and fallback search
+    private static final String DEFAULT_CATEGORIES = 
+            "catering.cafe,catering.restaurant,catering.bar,catering.pub,catering.fast_food,education.library,leisure.park,activity.fitness_club,sport_center";
 
     private static final long CACHE_TTL_MS = 6 * 60 * 60 * 1000L;
 
     private record CachedPlaces(List<SuggestedPlace> places, long cachedAt) {}
-
     private final Map<String, CachedPlaces> placeCache = new ConcurrentHashMap<>();
-    private volatile int preferredIndex = 0;
 
     private final RestTemplate restTemplate;
+    
+    @Value("${geoapify.api.key}")
+    private String apiKey;
 
     public OverpassPlacesService() {
-        // Own RestTemplate with increased timeouts and redirect handling
-        HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(15))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
-        factory.setReadTimeout(Duration.ofSeconds(60));
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(15000);
+        factory.setReadTimeout(30000);
         this.restTemplate = new RestTemplate(factory);
     }
 
@@ -67,8 +49,9 @@ public class OverpassPlacesService {
         List<SuggestedPlace> places = List.of();
 
         if (!tagFilters.isEmpty()) {
-            String key = cacheKey(lat, lon, radius, "interest:" + tagFilters);
-            places = lookup(key, buildInterestQuery(lat, lon, radius, tagFilters));
+            String categories = mapFiltersToGeoapifyCategories(tagFilters);
+            String key = cacheKey(lat, lon, radius, "interest:" + categories);
+            places = lookup(key, lat, lon, radius, categories);
         }
 
         if (places.isEmpty()) {
@@ -81,182 +64,104 @@ public class OverpassPlacesService {
     public SuggestionsResponse findNearbyPlaces(double lat, double lon, int radius) {
         radius = Math.max(100, Math.min(radius, 5000));
         String key = cacheKey(lat, lon, radius, "fallback");
-        return new SuggestionsResponse(lookup(key, buildFallbackQuery(lat, lon, radius)));
+        return new SuggestionsResponse(lookup(key, lat, lon, radius, DEFAULT_CATEGORIES));
     }
 
     // ---------------- CACHE ----------------
 
     private String cacheKey(double lat, double lon, int radius, String variant) {
-        // 3 decimals is roughly 110 m, so nearby midpoints share results.
         return String.format(Locale.US, "%.3f,%.3f,%d,%s", lat, lon, radius, variant);
     }
 
-    private List<SuggestedPlace> lookup(String key, String query) {
+    private List<SuggestedPlace> lookup(String key, double lat, double lon, int radius, String categories) {
         CachedPlaces hit = placeCache.get(key);
         if (hit != null && System.currentTimeMillis() - hit.cachedAt() < CACHE_TTL_MS) {
             return hit.places();
         }
 
-        List<SuggestedPlace> places = mapToSuggestedPlaces(callOverpass(query));
+        List<SuggestedPlace> places = callGeoapify(lat, lon, radius, categories);
 
-        // Never cache an empty answer.
         if (!places.isEmpty()) {
             placeCache.put(key, new CachedPlaces(places, System.currentTimeMillis()));
         }
         return places;
     }
 
-    // ---------------- OVERPASS CALL (with failover) ----------------
+    // ---------------- GEOAPIFY API CALL ----------------
 
-    private OverpassResponse callOverpass(String query) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.set(HttpHeaders.USER_AGENT, USER_AGENT);
-        headers.set(HttpHeaders.REFERER, "https://radius-create.com");
-        
-        // Avoid reusing potentially bad keep-alive connections.
-        headers.set("Connection", "close");
-
-        HttpEntity<String> request = new HttpEntity<>(
-                "data=" + URLEncoder.encode(query, StandardCharsets.UTF_8), headers);
-
-        RuntimeException lastError = null;
-        int start = preferredIndex;
-
-        for (int i = 0; i < OVERPASS_URLS.size(); i++) {
-            int idx = (start + i) % OVERPASS_URLS.size();
-            String url = OVERPASS_URLS.get(idx);
-            try {
-                System.out.println("Trying Overpass endpoint: " + url);
-                OverpassResponse response =
-                        restTemplate.postForObject(url, request, OverpassResponse.class);
-                if (response != null && response.elements() != null) {
-                    System.out.println(
-                            "Overpass success from " + url +
-                                    " with " + response.elements().size() +
-                                    " elements"
-                    );
-                    preferredIndex = idx;
-                    return response;
-                }
-                System.out.println("Overpass " + url + " returned null or empty response");
-            } catch (Exception e) {
-                lastError = new RuntimeException(e);
-                System.err.println("Overpass " + url + " failed: " + e.getClass().getName());
-                e.printStackTrace();
-            }
-        }
-
-        // Every server failed: let the caller's retry logic see the error.
-        if (lastError != null) throw lastError;
-        return null;
-    }
-
-    // ---------------- QUERIES ----------------
-
-    private String buildInterestQuery(double lat, double lon, int radius, List<Map<String, String>> tagFilters) {
-        StringBuilder qb = new StringBuilder();
-        qb.append("[out:json][timeout:15];\n(\n");
-
-        for (Map<String, String> filter : tagFilters) {
-            qb.append("  nwr");
-            for (Map.Entry<String, String> entry : filter.entrySet()) {
-                qb.append(String.format("[\"%s\"=\"%s\"]", entry.getKey(), entry.getValue()));
-            }
-            qb.append(String.format(Locale.US, "(around:%d,%f,%f);%n", radius, lat, lon));
-        }
-
-        qb.append(");\nout center;\n");
-        return qb.toString();
-    }
-
-    private String buildFallbackQuery(double lat, double lon, int radius) {
-        return String.format(Locale.US, """
-                [out:json][timeout:15];
-                (
-                  nwr["amenity"~"%s"](around:%d,%f,%f);
-                  nwr["leisure"~"%s"](around:%d,%f,%f);
-                );
-                out center;
-                """,
-                AMENITY_TAGS, radius, lat, lon,
-                LEISURE_TAGS, radius, lat, lon);
-    }
-
-    // ---------------- MAPPING ----------------
-
-    private List<SuggestedPlace> mapToSuggestedPlaces(OverpassResponse response) {
+    private List<SuggestedPlace> callGeoapify(double lat, double lon, int radius, String categories) {
         List<SuggestedPlace> places = new ArrayList<>();
-        if (response == null || response.elements() == null) {
-            return places;
-        }
+        try {
+            // Geoapify uses circle:lon,lat,radiusMeters format
+            String filterParam = String.format(Locale.US, "circle:%.6f,%.6f,%d", lon, lat, radius);
 
-        for (OverpassElement element : response.elements()) {
-            Map<String, String> tags = element.tags();
-            String name = tags == null ? null : tags.get("name");
-            if (name == null || name.equalsIgnoreCase("unbranded")) {
-                continue;
-            }
-            double placeLat = 0.0;
-            double placeLon = 0.0;
+            // CHANGED: fromHttpUrl replaced with fromUriString
+            String url = UriComponentsBuilder.fromUriString(GEOAPIFY_URL)
+                    .queryParam("categories", categories)
+                    .queryParam("filter", filterParam)
+                    .queryParam("limit", 50)
+                    .queryParam("apiKey", apiKey)
+                    .toUriString();
 
-            // 1. Check top-level elements first (Safely handles Double object wrappers)
-            if (element.lat() != null && !element.lat().equals(0.0)) {
-                placeLat = element.lat();
-                placeLon = element.lon();
-            }
-            // 2. Fall back to the nested center block
-            else if (element.center() != null) {
-                Object rawLat = element.center().lat();
-                Object rawLon = element.center().lon();
+            System.out.println("Calling Geoapify API...");
+            ResponseEntity<JsonNode> response = restTemplate.getForEntity(url, JsonNode.class);
+            JsonNode root = response.getBody();
 
-                if (rawLat != null && rawLon != null) {
-                    placeLat = ((Number) rawLat).doubleValue();
-                    placeLon = ((Number) rawLon).doubleValue();
+            if (root != null && root.has("features")) {
+                for (JsonNode feature : root.get("features")) {
+                    JsonNode properties = feature.get("properties");
+                    JsonNode geometry = feature.get("geometry");
+
+                    if (properties == null || geometry == null) continue;
+
+                    String name = properties.has("name") ? properties.get("name").asText() : null;
+                    if (name == null || name.equalsIgnoreCase("unbranded")) continue;
+
+                    String placeId = properties.has("place_id") ? properties.get("place_id").asText() : java.util.UUID.randomUUID().toString();
+                    String address = properties.has("formatted") ? properties.get("formatted").asText() : "Address unavailable";
+
+                    JsonNode coords = geometry.get("coordinates");
+                    if (coords == null || coords.size() < 2) continue;
+
+                    double placeLon = coords.get(0).asDouble();
+                    double placeLat = coords.get(1).asDouble();
+
+                    places.add(new SuggestedPlace(
+                            placeId,
+                            name,
+                            new PlaceLocation(address),
+                            placeLat,
+                            placeLon
+                    ));
                 }
             }
-
-            // Drop values that lack proper coordinates to protect the Flutter Map UI
-            if (placeLat == 0.0 || placeLon == 0.0) {
-                continue;
-            }
-
-            places.add(new SuggestedPlace(
-                    String.valueOf(element.id()),
-                    name,
-                    new PlaceLocation(buildFormattedAddress(tags)),
-                    placeLat,
-                    placeLon
-            ));
+            System.out.println("Geoapify success: found " + places.size() + " places.");
+        } catch (Exception e) {
+            System.err.println("Geoapify request failed: " + e.getMessage());
+            e.printStackTrace();
         }
-
         return places;
     }
 
-    private String buildFormattedAddress(Map<String, String> tags) {
-        if (tags == null) return "Address unavailable";
+    // ---------------- MAPPING FILTERS ----------------
 
-        String houseNumber = tags.get("addr:housenumber");
-        String street = tags.get("addr:street");
-        String city = tags.get("addr:city");
-        String state = tags.get("addr:state");
+    private String mapFiltersToGeoapifyCategories(List<Map<String, String>> tagFilters) {
+        List<String> mappedCategories = new ArrayList<>();
+        for (Map<String, String> filter : tagFilters) {
+            String amenity = filter.get("amenity");
+            String leisure = filter.get("leisure");
 
-        StringBuilder sb = new StringBuilder();
-        if (houseNumber != null && street != null) {
-            sb.append(houseNumber).append(" ").append(street);
-        } else if (street != null) {
-            sb.append(street);
+            if ("cafe".equals(amenity)) mappedCategories.add("catering.cafe");
+            else if ("restaurant".equals(amenity)) mappedCategories.add("catering.restaurant");
+            else if ("bar".equals(amenity)) mappedCategories.add("catering.bar");
+            else if ("pub".equals(amenity)) mappedCategories.add("catering.pub");
+            else if ("fast_food".equals(amenity)) mappedCategories.add("catering.fast_food");
+            else if ("library".equals(amenity)) mappedCategories.add("education.library");
+            else if ("park".equals(leisure)) mappedCategories.add("leisure.park");
+            else if ("fitness_centre".equals(leisure) || "sports_centre".equals(leisure)) {
+                mappedCategories.add("activity.fitness_club");
+            }
         }
-        if (city != null) {
-            if (sb.length() > 0) sb.append(", ");
-            sb.append(city);
-        }
-        if (state != null) {
-            if (sb.length() > 0) sb.append(", ");
-            sb.append(state);
-        }
-
-        return sb.length() > 0 ? sb.toString() : "Address unavailable";
+        return mappedCategories.isEmpty() ? DEFAULT_CATEGORIES : String.join(",", mappedCategories);
     }
 }
