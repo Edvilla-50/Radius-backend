@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -23,9 +22,9 @@ public class OverpassPlacesService {
 
     private static final String GEOAPIFY_URL = "https://api.geoapify.com/v2/places";
 
-    // Geoapify category mappings for interests and fallback search
+    // FIXED: Replaced unsupported "activity.fitness_club" with valid "sport.fitness.gym"
     private static final String DEFAULT_CATEGORIES = 
-            "catering.cafe,catering.restaurant,catering.bar,catering.pub,catering.fast_food,education.library,leisure.park,activity.fitness_club,sport_center";
+            "catering.cafe,catering.restaurant,catering.bar,catering.pub,catering.fast_food,education.library,leisure.park,sport.fitness.gym,sport_center";
 
     private static final long CACHE_TTL_MS = 6 * 60 * 60 * 1000L;
 
@@ -92,10 +91,8 @@ public class OverpassPlacesService {
     private List<SuggestedPlace> callGeoapify(double lat, double lon, int radius, String categories) {
         List<SuggestedPlace> places = new ArrayList<>();
         try {
-            // Geoapify uses circle:lon,lat,radiusMeters format
             String filterParam = String.format(Locale.US, "circle:%.6f,%.6f,%d", lon, lat, radius);
 
-            // CHANGED: fromHttpUrl replaced with fromUriString
             String url = UriComponentsBuilder.fromUriString(GEOAPIFY_URL)
                     .queryParam("categories", categories)
                     .queryParam("filter", filterParam)
@@ -103,7 +100,7 @@ public class OverpassPlacesService {
                     .queryParam("apiKey", apiKey)
                     .toUriString();
 
-            System.out.println("Calling Geoapify API...");
+            System.out.println("Calling Geoapify API with categories: " + categories);
             ResponseEntity<JsonNode> response = restTemplate.getForEntity(url, JsonNode.class);
             JsonNode root = response.getBody();
 
@@ -138,7 +135,11 @@ public class OverpassPlacesService {
             System.out.println("Geoapify success: found " + places.size() + " places.");
         } catch (Exception e) {
             System.err.println("Geoapify request failed: " + e.getMessage());
-            e.printStackTrace();
+            // SAFETY FALLBACK: If a custom category fails with 400 Bad Request, retry once using safe defaults
+            if (!categories.equals(DEFAULT_CATEGORIES)) {
+                System.out.println("Retrying with default safe categories...");
+                return callGeoapify(lat, lon, radius, DEFAULT_CATEGORIES);
+            }
         }
         return places;
     }
@@ -158,8 +159,9 @@ public class OverpassPlacesService {
             else if ("fast_food".equals(amenity)) mappedCategories.add("catering.fast_food");
             else if ("library".equals(amenity)) mappedCategories.add("education.library");
             else if ("park".equals(leisure)) mappedCategories.add("leisure.park");
-            else if ("fitness_centre".equals(leisure) || "sports_centre".equals(leisure)) {
-                mappedCategories.add("activity.fitness_club");
+            // FIXED: Map fitness/sports correctly to Geoapify's standard
+            else if ("fitness_centre".equals(leisure) || "sports_centre".equals(leisure) || "gym".equals(amenity)) {
+                mappedCategories.add("sport.fitness.gym");
             }
         }
         return mappedCategories.isEmpty() ? DEFAULT_CATEGORIES : String.join(",", mappedCategories);
