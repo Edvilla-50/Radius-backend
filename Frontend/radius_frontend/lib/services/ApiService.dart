@@ -163,6 +163,19 @@ class ApiService {
     return null;
   }
 
+  // Returns { "isSender": bool }: true if this user sent the meetup request.
+  static Future<Map<String, dynamic>> getMeetRole(int matchId, int userId) async {
+    final res = await http.get(
+      Uri.parse("$baseUrl/match/meet/role/$matchId/$userId"),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception("Failed to get meetup role");
+    }
+
+    return jsonDecode(res.body);
+  }
+
   // ---------------------------
   // USER
   // ---------------------------

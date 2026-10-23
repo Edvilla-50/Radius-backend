@@ -8,6 +8,13 @@ class OnboardingScreen extends StatelessWidget {
 
   const OnboardingScreen({super.key, this.isTutorial = false});
 
+  static const PageDecoration _pageDecoration = PageDecoration(
+    titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+    bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
+    pageColor: Colors.blueAccent,
+    imagePadding: EdgeInsets.all(24),
+  );
+
   Future<void> _completeOnboarding(BuildContext context) async {
     if (isTutorial) {
       Navigator.pop(context);
@@ -41,85 +48,50 @@ class OnboardingScreen extends StatelessWidget {
         child: IntroductionScreen(
           pages: [
             PageViewModel(
-              title: "See Who's Nearby",
-              body: "Discover real people nearby who share your interests by pressing the scan button. Each person will have a score that indicates compatibility, determined by your TraitStack.",
+              title: "Check In to See Who's Nearby",
+              body: "You start every session hidden. Tap the SCAN button and confirm to check in. While you're checked in, you'll see nearby people who have checked in too, each with a compatibility score based on your TraitStack.",
               image: Image.asset('assets/images/scan.png'),
-              decoration: const PageDecoration(
-                titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
-                pageColor: Colors.blueAccent,
-                imagePadding: EdgeInsets.all(24),
-              ),
+              decoration: _pageDecoration,
             ),
             PageViewModel(
               title: "Build Your TraitStack",
               body: "Your TraitStack is a dynamic system you can customize to your liking by ranking your interests in order of importance. The Innocuous Algorithm uses this to compute a compatibility score for people near you and sorts them accordingly.",
               image: Image.asset('assets/images/traitstack.png'),
-              decoration: const PageDecoration(
-                titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
-                pageColor: Colors.blueAccent,
-                imagePadding: EdgeInsets.all(24),
-              ),
+              decoration: _pageDecoration,
             ),
             PageViewModel(
               title: "Express Yourself",
-              body: "Radius gives you a fully customizable HTML profile page. Visit radius-create.com to design your profile — add your personality, style, and story so others know exactly who they're meeting before they show up.",
+              body: "Radius gives you a customizable profile page. Visit radius-create.com to design your profile with your own style and story, so others know a little about you before you meet.",
               image: Image.asset('assets/images/profile.png'),
-              decoration: const PageDecoration(
-                titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
-                pageColor: Colors.blueAccent,
-                imagePadding: EdgeInsets.all(24),
-              ),
+              decoration: _pageDecoration,
             ),
             PageViewModel(
               title: "Send a Meetup Request",
-              body: "If you find someone interesting, send them a meetup request. If they accept, you can start chatting and arrange to meet in person the same day. The app will suggest nearby locations to meet up at.",
+              body: "If you find someone interesting, send them a meetup request. If they accept, you can start chatting and arrange to meet in person the same day. The app will suggest nearby public places to meet, and you both confirm the spot.",
               image: Image.asset('assets/images/meetup.png'),
-              decoration: const PageDecoration(
-                titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
-                pageColor: Colors.blueAccent,
-                imagePadding: EdgeInsets.all(24),
-              ),
+              decoration: _pageDecoration,
             ),
             PageViewModel(
               title: "Your Safety Matters",
-              body: "Radius has a built-in emergency system. If you ever feel unsafe during a meetup, press the emergency button to instantly alert your trusted contacts with your live location.",
+              body: "Radius has a built-in emergency system. If you ever feel unsafe during a meetup, press the emergency button to instantly alert your trusted contacts with your location. You can also report or block anyone at any time.",
               image: Image.asset('assets/images/emergency.png'),
-              decoration: const PageDecoration(
-                titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
-                pageColor: Colors.blueAccent,
-                imagePadding: EdgeInsets.all(24),
-              ),
+              decoration: _pageDecoration,
             ),
             PageViewModel(
-              title: "Need a Break? Go Ghost",
-              body: "Turn on Ghost Mode anytime to disappear from scans. While it's on, you won't show up to others — and you won't be able to see them either. Toggle it off whenever you're ready to be discovered again.",
+              title: "You're Always in Control",
+              body: "Your location is shared only when you check in, and every check-in ends automatically after 30 minutes. Tap Stop Sharing to hide right away. If you close the app, you disappear from the map too. Other people's locations are never shown during a meetup.",
               image: const Icon(
-                Icons.visibility_off,
+                Icons.location_off,
                 size: 120,
                 color: Colors.white,
               ),
-              decoration: const PageDecoration(
-                titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
-                pageColor: Colors.blueAccent,
-                imagePadding: EdgeInsets.all(24),
-              ),
+              decoration: _pageDecoration,
             ),
             PageViewModel(
               title: "Meet in Real Life",
               body: "Radius is about real connections. Get off the app and go meet someone nearby today.",
               image: Image.asset('assets/images/meetirl.png'),
-              decoration: const PageDecoration(
-                titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                bodyTextStyle: TextStyle(fontSize: 18, color: Colors.white),
-                pageColor: Colors.blueAccent,
-                imagePadding: EdgeInsets.all(24),
-              ),
+              decoration: _pageDecoration,
             ),
           ],
           onDone: () => _completeOnboarding(context),

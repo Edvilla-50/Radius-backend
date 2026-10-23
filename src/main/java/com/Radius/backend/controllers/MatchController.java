@@ -1,5 +1,6 @@
 package com.Radius.backend.controllers;
 
+import com.Radius.backend.Bases.MeetRequestRepository;
 import com.Radius.backend.Entity.MeetRequest;
 import com.Radius.backend.Entity.User;
 import com.Radius.backend.Services.MatchService;
@@ -20,11 +21,31 @@ public class MatchController {
     private final MatchService service;
     private final MeetService meetService;
     private final MeetLocationService meetLocationService;
+    private final MeetRequestRepository meetRequestRepository;
 
-    public MatchController(MatchService service, MeetService meetService, MeetLocationService meetLocationService) {
+    public MatchController(
+            MatchService service,
+            MeetService meetService,
+            MeetLocationService meetLocationService,
+            MeetRequestRepository meetRequestRepository) {
         this.service = service;
         this.meetService = meetService;
         this.meetLocationService = meetLocationService;
+        this.meetRequestRepository = meetRequestRepository;
+    }
+
+    // Tells the app whether this user SENT the meetup request for this match
+    // (true: they choose the place) or received it (false: they wait and accept).
+    @GetMapping("/meet/role/{matchId}/{userId}")
+    public Map<String, Boolean> getMeetRole(@PathVariable int matchId, @PathVariable int userId) {
+        boolean isSender = false;
+        for (MeetRequest r : meetRequestRepository.findByRequesterId(userId)) {
+            if (String.valueOf(r.getMatchId()).equals(String.valueOf(matchId))) {
+                isSender = true;
+                break;
+            }
+        }
+        return Map.of("isSender", isSender);
     }
 
     // Returns ONLY the fields the app needs. Never return full User objects here:

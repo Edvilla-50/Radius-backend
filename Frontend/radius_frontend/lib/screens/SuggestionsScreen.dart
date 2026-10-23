@@ -10,10 +10,16 @@ class SuggestionsScreen extends StatefulWidget {
   final int otherUserId;
   final int matchId;
 
+  // true  = this user sent the meetup request (picks the place)
+  // false = this user received the request (waits, chats, then accepts)
+  // null  = unknown; fall back to the server's chooserId, as before.
+  final bool? isSender;
+
   const SuggestionsScreen({
     super.key,
     required this.otherUserId,
     required this.matchId,
+    this.isSender,
   });
 
   @override
@@ -21,7 +27,10 @@ class SuggestionsScreen extends StatefulWidget {
 }
 
 class _SuggestionsScreenState extends State<SuggestionsScreen> {
-  bool _loading = true;
+  // Suggestions load independently, so the chat and accept flow work even
+  // if the places lookup is slow or fails.
+  bool _loadingSuggestions = true;
+  String? _suggestionsError;
   dynamic _suggestions;
   List<dynamic> _messages = [];
 
@@ -32,6 +41,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   bool _navigated = false; 
   bool _popupShown = false;
   bool _iAmChooser = false;
+  // Role for this screen: true = sender (picks the place), false = recipient.
+  // null until known; then we fall back to the server's chooserId.
+  bool? _isSender;
 
   double? _selectedPlaceLat;
   double? _selectedPlaceLon;
@@ -45,6 +57,8 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   @override
   void initState() {
     super.initState();
+    _isSender = widget.isSender;
+    _iAmChooser = widget.isSender ?? false;
     _initScreenData();
 
     _expireTimer = Timer(const Duration(hours: 1), () {
@@ -56,16 +70,29 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   Future<void> _initScreenData() async {
     final prefs = await SharedPreferences.getInstance();
-    userId = prefs.getInt("userId");
+    final id = prefs.getInt("userId");
 
-    if (userId == null) {
+    if (id == null) {
       if (mounted) Navigator.of(context).pushReplacementNamed("/login");
       return;
     }
 
+    if (!mounted) return;
+    setState(() => userId = id);
+
+    await _resolveRole();
+    if (!mounted) return;
+
+    _loadMessages();
+
+    // Same order as the original: suggestions first (now bounded by a timeout
+    // so it can't hang forever), then the location check and polling. This
+    // avoids racing the server while it sets up the meetup location row.
     await _loadSuggestions();
-    await _loadMessages();
+    if (!mounted || _navigated) return;
+
     await _checkSelectedLocation();
+    if (!mounted || _navigated) return;
 
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_navigated) return;
@@ -146,14 +173,14 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   }
 
   void _handleSessionExpired() {
-  if (_navigated) return;
+    if (_navigated) return;
 
-  setState(() => _navigated = true);
-  _cleanUpTimers();
+    setState(() => _navigated = true);
+    _cleanUpTimers();
 
-  try {
-    ApiService.clearMeetLocation(widget.matchId);
-  } catch (_) {}
+    try {
+      ApiService.clearMeetLocation(widget.matchId);
+    } catch (_) {}
 
     if (!mounted) return;
 
@@ -161,22 +188,52 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         .pushNamedAndRemoveUntil("/home", (route) => false);
   }
 
-  Future<void> _loadSuggestions() async {
-  if (userId == null) return;
-  try {
-    // Pass widget.matchId as the third argument here
-    final res = await ApiService.getInterestSuggestions(userId!, widget.otherUserId, widget.matchId);
-    if (!mounted || _navigated) return;
-    setState(() {
-      _suggestions = res;
-      _loading = false;
-    });
-  } catch (e) {
-    debugPrint("🔴 Error fetching suggestions: $e"); // Log the error to your console
-    if (!mounted) return;
-    setState(() => _loading = false);
+  // Asks the server whether this user sent the meetup request. If the lookup
+  // fails, we keep the old behavior (role comes from the server's chooserId).
+  Future<void> _resolveRole() async {
+    if (_isSender != null || userId == null) return;
+    try {
+      final res = await ApiService.getMeetRole(widget.matchId, userId!)
+          .timeout(const Duration(seconds: 20));
+      final sender = res["isSender"] == true;
+      if (!mounted) return;
+      setState(() {
+        _isSender = sender;
+        _iAmChooser = sender;
+      });
+    } catch (e) {
+      debugPrint("Role lookup failed, falling back to server chooser: $e");
+    }
   }
-}
+
+  Future<void> _loadSuggestions() async {
+    if (userId == null) return;
+    if (mounted) {
+      setState(() {
+        _loadingSuggestions = true;
+        _suggestionsError = null;
+      });
+    }
+    try {
+      // Generous timeout: the server may be waking up or calling an external places API.
+      final res = await ApiService
+          .getInterestSuggestions(userId!, widget.otherUserId, widget.matchId)
+          .timeout(const Duration(seconds: 45));
+      if (!mounted || _navigated) return;
+      setState(() {
+        _suggestions = res;
+        _loadingSuggestions = false;
+      });
+    } catch (e) {
+      debugPrint("🔴 Error fetching suggestions: $e");
+      if (!mounted) return;
+      setState(() {
+        _loadingSuggestions = false;
+        _suggestionsError =
+            "Couldn't load suggested places. Check your connection and try again.";
+      });
+    }
+  }
 
   Future<void> _loadMessages() async {
     if (_navigated) return;
@@ -220,9 +277,10 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       final acceptedByA = loc["acceptedByA"] == true;
       final acceptedByB = loc["acceptedByB"] == true;
 
-      if (chooserId == null) return;
+      // If the caller told us our role, trust it; otherwise infer it from the server.
+      if (chooserId == null && _isSender == null) return;
 
-      final iAmChooser = chooserId == userId;
+      final iAmChooser = _isSender ?? (chooserId == userId);
       final iAccepted = iAmChooser ? acceptedByA : acceptedByB;
       _iAmChooser = iAmChooser;
 
@@ -360,9 +418,81 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     );
   }
 
-@override
+  Widget _buildSuggestionsArea(List results) {
+    if (_loadingSuggestions) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 12),
+            Text("Finding places for you..."),
+          ],
+        ),
+      );
+    }
+
+    if (_suggestionsError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _suggestionsError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _loadSuggestions,
+                child: const Text("Try again"),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (results.isEmpty) {
+      return const Center(child: Text("No suggestions found! :(", style: TextStyle(fontSize: 18)));
+    }
+
+    return ListView.builder(
+      itemCount: results.length,
+      itemBuilder: (context, index) {
+        final place = results[index];
+
+        // FIX: Safe check across potential camelCase/snake_case serialization variants
+        final fsqId = (place["fsq_place_id"] ?? place["fsqPlaceId"] ?? "").toString();
+        if (fsqId.isEmpty) {
+          debugPrint("⚠️ JSON Structure Warning: Skipped item missing ID fields: $place");
+          return const SizedBox.shrink();
+        }
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: ListTile(
+            title: Text(place["name"] ?? "Unknown Place", style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(place["location"]?["formatted_address"] ?? "Address unavailable"),
+            trailing: _iAmChooser
+                ? ElevatedButton(
+                    onPressed: _waitingForRecipient
+                        ? null
+                        : () => _confirmLocationSelection(place),
+                    child: const Text("Select"),
+                  )
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (_loading || userId == null) {
+    if (userId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -402,37 +532,20 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                 ],
               ),
             ),
+          if (_isSender == false && !_navigated)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: Colors.green.shade50,
+              child: const Text(
+                "They're choosing a meetup spot. Chat below, and you'll be asked to confirm once they pick one.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black87, fontSize: 14),
+              ),
+            ),
           Expanded(
             flex: 1,
-            child: results.isEmpty
-                ? const Center(child: Text("No suggestions found! :(", style: TextStyle(fontSize: 18)))
-                : ListView.builder(
-                    itemCount: results.length,
-                    itemBuilder: (context, index) {
-                      final place = results[index];
-                      
-                      // FIX: Safe check across potential camelCase/snake_case serialization variants
-                      final fsqId = (place["fsq_place_id"] ?? place["fsqPlaceId"] ?? "").toString();
-                      if (fsqId.isEmpty) {
-                        debugPrint("⚠️ JSON Structure Warning: Skipped item missing ID fields: $place");
-                        return const SizedBox.shrink();
-                      }
-
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: ListTile(
-                          title: Text(place["name"] ?? "Unknown Place", style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(place["location"]?["formatted_address"] ?? "Address unavailable"),
-                          trailing: ElevatedButton(
-                            onPressed: (!_iAmChooser || _waitingForRecipient)
-                            ? null
-                            : () => _confirmLocationSelection(place),
-                            child: const Text("Select"),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+            child: _buildSuggestionsArea(results),
           ),
           const Divider(height: 1),
           Expanded(
@@ -477,8 +590,12 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                       Expanded(
                         child: TextField(
                           controller: _msgController,
+                          // Explicit colors so typed text is readable in dark mode.
+                          style: const TextStyle(color: Colors.black87),
+                          cursorColor: Colors.black87,
                           decoration: InputDecoration(
                             hintText: "Suggest a meetup spot...",
+                            hintStyle: const TextStyle(color: Colors.black45),
                             filled: true,
                             fillColor: Colors.grey.shade100,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
