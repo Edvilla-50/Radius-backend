@@ -2,7 +2,7 @@ name: radius_frontend
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.7+11
+version: 1.0.7+12
 
 environment:
   sdk: ^3.9.2
@@ -26,6 +26,7 @@ dependencies:
   firebase_messaging: ^16.3.0
   flutter_local_notifications: ^19.0.0
   url_launcher: ^6.3.2
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:

@@ -27,8 +27,6 @@ class SuggestionsScreen extends StatefulWidget {
 }
 
 class _SuggestionsScreenState extends State<SuggestionsScreen> {
-  // Suggestions load independently, so the chat and accept flow work even
-  // if the places lookup is slow or fails.
   bool _loadingSuggestions = true;
   String? _suggestionsError;
   dynamic _suggestions;
@@ -38,12 +36,15 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
   bool _initialCheckDone = false;
   bool _waitingForRecipient = false;
-  bool _navigated = false; 
+  bool _navigated = false;
   bool _popupShown = false;
   bool _iAmChooser = false;
-  // Role for this screen: true = sender (picks the place), false = recipient.
-  // null until known; then we fall back to the server's chooserId.
   bool? _isSender;
+
+  // Currently open "Meet at X?" dialog (recipient side), so it can be closed
+  // if the sender changes or clears the place while it is showing.
+  BuildContext? _popupContext;
+  String? _popupPlaceKey;
 
   double? _selectedPlaceLat;
   double? _selectedPlaceLon;
@@ -53,6 +54,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   final ScrollController _scrollController = ScrollController();
   Timer? _pollTimer;
   Timer? _expireTimer;
+  DateTime? _serverExpiresAt;
 
   @override
   void initState() {
@@ -61,9 +63,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     _iAmChooser = widget.isSender ?? false;
     _initScreenData();
 
-    _expireTimer = Timer(const Duration(hours: 1), () {
-      _handleSessionExpired();
-    });
+    // Fallback only. Once the server sends expiresAt, _applyServerExpiry()
+    // replaces this so reopening the screen can't extend the session.
+    _expireTimer = Timer(const Duration(hours: 1), _handleSessionExpired);
 
     AppState().sosTriggered.addListener(_onSosTriggered);
   }
@@ -85,9 +87,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
 
     _loadMessages();
 
-    // Same order as the original: suggestions first (now bounded by a timeout
-    // so it can't hang forever), then the location check and polling. This
-    // avoids racing the server while it sets up the meetup location row.
     await _loadSuggestions();
     if (!mounted || _navigated) return;
 
@@ -118,10 +117,39 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     _expireTimer = null;
   }
 
+  // Uses the server's expiry time when it provides one.
+  void _applyServerExpiry(dynamic raw) {
+    if (raw == null) return;
+    final parsed = DateTime.tryParse(raw.toString());
+    if (parsed == null || parsed == _serverExpiresAt) return;
+    _serverExpiresAt = parsed;
+    _expireTimer?.cancel();
+    final remaining = parsed.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      _handleSessionExpired();
+    } else {
+      _expireTimer = Timer(remaining, _handleSessionExpired);
+    }
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _closePopupIfOpen() {
+    final ctx = _popupContext;
+    _popupContext = null;
+    _popupPlaceKey = null;
+    if (ctx != null && ctx.mounted) {
+      Navigator.of(ctx).pop();
+    }
+  }
+
   void _onSosTriggered() async {
     if (!AppState().sosTriggered.value) return;
     if (_navigated || userId == null) return;
-    
+
     setState(() {
       _navigated = true;
       _waitingForRecipient = false;
@@ -132,14 +160,13 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       await ApiService.sendMessage(
         widget.matchId,
         userId!,
-        "⚠️ Emergency SOS triggered. Meeting cancelled."
+        "⚠️ Emergency SOS triggered. Meeting cancelled.",
       );
       await ApiService.clearMeetLocation(widget.matchId);
     } catch (e) {
       debugPrint("Error saving SOS updates: $e");
     } finally {
-      // CRITICAL FIX: Drops active match references completely to break home check loops
-      AppState().clearActiveMatch(); 
+      AppState().clearActiveMatch();
       AppState().resetSos();
       AppState().isHandlingSosCleanup = false;
       AppState().justTriggeredSos = false;
@@ -172,24 +199,26 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     );
   }
 
-  void _handleSessionExpired() {
-    if (_navigated) return;
+  // FIX: async + awaited, so a failed clearMeetLocation is actually caught,
+  // and setState is guarded by `mounted`.
+  Future<void> _handleSessionExpired() async {
+    if (_navigated || !mounted) return;
 
     setState(() => _navigated = true);
     _cleanUpTimers();
+    _closePopupIfOpen();
 
     try {
-      ApiService.clearMeetLocation(widget.matchId);
-    } catch (_) {}
+      await ApiService.clearMeetLocation(widget.matchId);
+    } catch (e) {
+      debugPrint("clearMeetLocation on expiry failed: $e");
+    }
 
     if (!mounted) return;
 
-    Navigator.of(context)
-        .pushNamedAndRemoveUntil("/home", (route) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil("/home", (route) => false);
   }
 
-  // Asks the server whether this user sent the meetup request. If the lookup
-  // fails, we keep the old behavior (role comes from the server's chooserId).
   Future<void> _resolveRole() async {
     if (_isSender != null || userId == null) return;
     try {
@@ -215,7 +244,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       });
     }
     try {
-      // Generous timeout: the server may be waking up or calling an external places API.
       final res = await ApiService
           .getInterestSuggestions(userId!, widget.otherUserId, widget.matchId)
           .timeout(const Duration(seconds: 45));
@@ -262,22 +290,46 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       debugPrint("LOCATION RESPONSE = $loc");
       if (_navigated) return;
 
-      if (loc == null || loc["expired"] == true) {
-        if (_locationEverExisted) _handleSessionExpired();
+      if (loc != null && loc["expired"] == true) {
+        _handleSessionExpired();
+        return;
+      }
+
+      if (loc != null) _applyServerExpiry(loc["expiresAt"]);
+
+      // No place selected (null, or the server's hasSelection:false). This means
+      // "cleared / reset", not "expired": expiry and SOS arrive as expired:true
+      // here or via _checkMutualAcceptance (expired / sosTriggered flags).
+      if (loc == null || loc["hasSelection"] != true) {
+        if (_locationEverExisted) {
+          final wasWaiting = _waitingForRecipient;
+          _locationEverExisted = false;
+          _popupShown = false;
+          _selectedPlaceLat = null;
+          _selectedPlaceLon = null;
+          _closePopupIfOpen();
+          if (mounted) setState(() => _waitingForRecipient = false);
+          if (wasWaiting) {
+            _showSnack("They'd like a different spot. Pick another one!");
+          }
+        }
         return;
       }
 
       _locationEverExisted = true;
-      _selectedPlaceLat ??= (loc["lat"] as num?)?.toDouble();
-      _selectedPlaceLon ??= (loc["lon"] as num?)?.toDouble();
+      _applyServerExpiry(loc["expiresAt"]);
+
+      // FIX: assign directly so a changed place doesn't keep stale coordinates.
+      _selectedPlaceLat = (loc["lat"] as num?)?.toDouble();
+      _selectedPlaceLon = (loc["lon"] as num?)?.toDouble();
 
       final chooserId = (loc["chooserId"] as num?)?.toInt();
       final name = (loc["name"] ?? "Unknown place").toString();
       final address = (loc["address"] ?? "").toString();
+      final locationId = (loc["locationId"] ?? "").toString();
       final acceptedByA = loc["acceptedByA"] == true;
       final acceptedByB = loc["acceptedByB"] == true;
 
-      // If the caller told us our role, trust it; otherwise infer it from the server.
       if (chooserId == null && _isSender == null) return;
 
       final iAmChooser = _isSender ?? (chooserId == userId);
@@ -306,9 +358,17 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
         return;
       }
 
+      // Recipient side. If the sender swapped the place while the dialog is
+      // open, close the stale one and show the new one.
+      final placeKey = "$locationId|$name|$address";
+      if (_popupContext != null && _popupPlaceKey != placeKey) {
+        _closePopupIfOpen();
+        _popupShown = false;
+      }
+
       if (!_popupShown) {
         _popupShown = true;
-        _showIncomingLocationPopup(name, address);
+        _showIncomingLocationPopup(name, address, locationId);
       }
     } catch (e) {
       debugPrint("_checkSelectedLocation error: $e");
@@ -340,31 +400,92 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     }
   }
 
-  void _showIncomingLocationPopup(String name, String address) {
+  // FIX: recipient can now decline ("Pick another") instead of being forced
+  // to accept.
+  void _showIncomingLocationPopup(String name, String address, String locationId) {
     if (_navigated || userId == null) return;
+    _popupPlaceKey = "$locationId|$name|$address";
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text("Meet at $name?"),
-        content: Text(address.isNotEmpty ? address : "Your match chose a meetup spot."),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              if (_navigated) return;
-              try {
-                await ApiService.acceptLocation(widget.matchId, userId!);
-                if (mounted && !_navigated) setState(() => _waitingForRecipient = false);
-              } catch (e) {
-                debugPrint("acceptLocation error: $e");
-              }
-            },
-            child: const Text("Let's go!"),
-          ),
-        ],
-      ),
-    );
+      builder: (dialogCtx) {
+        _popupContext = dialogCtx;
+        return AlertDialog(
+          title: Text("Meet at $name?"),
+          content: Text(address.isNotEmpty ? address : "Your match chose a meetup spot."),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                _popupContext = null;
+                _popupPlaceKey = null;
+                Navigator.pop(dialogCtx);
+                if (_navigated) return;
+                try {
+                  // _popupShown stays true until the reset lands, so a poll
+                  // in between can't reopen the same dialog.
+                  await ApiService.resetMeetLocation(widget.matchId, userId!);
+                  await ApiService.sendMessage(
+                    widget.matchId,
+                    userId!,
+                    "Could we pick a different spot?",
+                  );
+                  _locationEverExisted = false;
+                  _selectedPlaceLat = null;
+                  _selectedPlaceLon = null;
+                  _popupShown = false;
+                  _loadMessages();
+                } catch (e) {
+                  debugPrint("resetMeetLocation (decline) error: $e");
+                  _popupShown = false; // let the poll show it again
+                  _showSnack("Couldn't decline right now. Try again.");
+                }
+              },
+              child: const Text("Pick another"),
+            ),
+            TextButton(
+              onPressed: () async {
+                _popupContext = null;
+                _popupPlaceKey = null;
+                Navigator.pop(dialogCtx);
+                if (_navigated) return;
+                try {
+                  await ApiService.acceptLocation(
+                    widget.matchId,
+                    userId!,
+                    locationId: locationId.isEmpty ? null : locationId,
+                  );
+                  if (mounted && !_navigated) setState(() => _waitingForRecipient = false);
+                } catch (e) {
+                  debugPrint("acceptLocation error: $e");
+                  _showSnack("Couldn't confirm. Try again.");
+                  _popupShown = false;
+                }
+              },
+              child: const Text("Let's go!"),
+            ),
+          ],
+        );
+      },
+    ).then((_) {
+      _popupContext = null;
+      _popupPlaceKey = null;
+    });
+  }
+
+  // FIX: sender can take back their pick while waiting.
+  Future<void> _changePlace() async {
+    if (_navigated || userId == null) return;
+    try {
+      await ApiService.resetMeetLocation(widget.matchId, userId!);
+      _locationEverExisted = false;
+      _selectedPlaceLat = null;
+      _selectedPlaceLon = null;
+      if (mounted) setState(() => _waitingForRecipient = false);
+    } catch (e) {
+      debugPrint("resetMeetLocation (change) error: $e");
+      _showSnack("Couldn't change the place. Try again.");
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -382,20 +503,20 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     if (_navigated || userId == null) return;
     final name = (place["name"] ?? "this place").toString();
     final address = (place["location"]?["formatted_address"] ?? "").toString();
-    final fsqId = (place["fsq_place_id"] ?? "").toString();
+    final fsqId = (place["fsq_place_id"] ?? place["fsqPlaceId"] ?? "").toString();
     final lat = (place["latitude"] as num?)?.toDouble();
     final lon = (place["longitude"] as num?)?.toDouble();
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: Text("Choose $name?"),
         content: Text(address),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text("Cancel")),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
               if (_navigated) return;
               try {
                 await ApiService.selectMeetLocation(widget.matchId, userId!, fsqId, name, address, lat, lon);
@@ -406,9 +527,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                 _selectedPlaceLon = lon;
                 setState(() => _waitingForRecipient = true);
               } catch (e) {
-                if (mounted && !_navigated) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to select location: $e")));
-                }
+                _showSnack("Failed to select location: $e");
               }
             },
             child: const Text("Confirm"),
@@ -464,7 +583,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       itemBuilder: (context, index) {
         final place = results[index];
 
-        // FIX: Safe check across potential camelCase/snake_case serialization variants
         final fsqId = (place["fsq_place_id"] ?? place["fsqPlaceId"] ?? "").toString();
         if (fsqId.isEmpty) {
           debugPrint("⚠️ JSON Structure Warning: Skipped item missing ID fields: $place");
@@ -517,18 +635,25 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
           if (_waitingForRecipient)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               color: Colors.green.shade100,
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.green),
                   ),
-                  SizedBox(width: 10),
-                  Text("Waiting for them to accept...", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 10),
+                  const Text("Waiting for them to accept...",
+                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 8),
+                  // FIX: sender can change their mind.
+                  TextButton(
+                    onPressed: _changePlace,
+                    child: const Text("Change place"),
+                  ),
                 ],
               ),
             ),
@@ -590,7 +715,6 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                       Expanded(
                         child: TextField(
                           controller: _msgController,
-                          // Explicit colors so typed text is readable in dark mode.
                           style: const TextStyle(color: Colors.black87),
                           cursorColor: Colors.black87,
                           decoration: InputDecoration(

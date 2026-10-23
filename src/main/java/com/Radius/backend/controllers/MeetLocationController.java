@@ -1,14 +1,16 @@
 package com.Radius.backend.controllers;
 
-import com.Radius.backend.Entity.MeetLocation;
 import com.Radius.backend.Services.MeetLocationService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
+// No @CrossOrigin: the Flutter app is not a browser. No per-poll logging: the app
+// polls every 3 seconds per phone and the old println calls flooded the logs.
 @RestController
 @RequestMapping("/meet")
-@CrossOrigin(originPatterns = "*")
 public class MeetLocationController {
 
     private final MeetLocationService service;
@@ -17,55 +19,56 @@ public class MeetLocationController {
         this.service = service;
     }
 
+    record SelectRequest(Integer matchId, Integer userId, String locationId,
+                         String name, String address, Double lat, Double lon) {}
+
+    record AcceptRequest(Integer matchId, Integer userId, String locationId) {}
+
+    record ResetRequest(Integer matchId, Integer userId) {}
+
+    private static int need(Integer value, String field) {
+        if (value == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " is required.");
+        }
+        return value;
+    }
+
+    // TODO(auth): take userId from the verified token instead of the body.
     @PostMapping("/select-location")
-    public MeetLocation selectLocation(@RequestBody Map<String, Object> body) {
-        System.out.println("====== SELECT LOCATION REQUEST ======");
-        System.out.println("Body: " + body);
-
-        int matchId = ((Number) body.get("matchId")).intValue();
-        int userId = ((Number) body.get("userId")).intValue();
-        String locationId = (String) body.get("locationId");
-        String name = (String) body.get("name");
-        String address = (String) body.get("address");
-
-        Double lat = body.get("lat") != null ? ((Number) body.get("lat")).doubleValue() : null;
-        Double lon = body.get("lon") != null ? ((Number) body.get("lon")).doubleValue() : null;
-
-        return service.chooseLocation(matchId, userId, locationId, name, address, lat, lon);
+    public Map<String, Object> selectLocation(@RequestBody SelectRequest body) {
+        int matchId = need(body.matchId(), "matchId");
+        service.chooseLocation(matchId, need(body.userId(), "userId"),
+                body.locationId(), body.name(), body.address(), body.lat(), body.lon());
+        return service.getLocation(matchId);
     }
 
     @PostMapping("/location/accept")
-    public MeetLocation accept(@RequestBody Map<String, Object> body) {
-        int matchId = ((Number) body.get("matchId")).intValue();
-        int userId = ((Number) body.get("userId")).intValue();
-        return service.acceptLocation(matchId, userId);
+    public Map<String, Object> accept(@RequestBody AcceptRequest body) {
+        int matchId = need(body.matchId(), "matchId");
+        service.acceptLocation(matchId, need(body.userId(), "userId"), body.locationId());
+        return service.getLocation(matchId);
     }
 
+    @PostMapping("/location/reset")
+    public Map<String, Object> reset(@RequestBody ResetRequest body) {
+        int matchId = need(body.matchId(), "matchId");
+        service.resetLocation(matchId, need(body.userId(), "userId"));
+        return service.getLocation(matchId);
+    }
+
+    // TODO(auth): both GETs below return the chosen place; once tokens exist,
+    // only the two participants of the match may read them.
     @GetMapping("/location/{matchId}")
     public Map<String, Object> getLocation(@PathVariable int matchId) {
-        Map<String, Object> locData = service.getLocation(matchId);
-        System.out.println("🔄 Poll /location/" + matchId + " -> returning: " + locData);
-        return locData;
-    }
-
-    @DeleteMapping("/location/{matchId}")
-    public Map<String, Object> clearLocation(@PathVariable int matchId) {
-        service.clearLocation(matchId);
-
-        return Map.of(
-            "exists", false,
-            "expired", true,
-            "mutual", false
-        );
+        return service.getLocation(matchId);
     }
 
     @GetMapping("/location/mutual/{matchId}")
     public Map<String, Object> mutual(@PathVariable int matchId) {
-        Map<String, Object> mutualData = service.checkMutual(matchId);
-        
-        // CRITICAL DEBUG: Check your Spring console logs to see if this returns expired=true or sosTriggered=true right away!
-        System.out.println("🔄 Poll /location/mutual/" + matchId + " -> returning: " + mutualData);
-        
-        return mutualData;
+        return service.checkMutual(matchId);
     }
+
+    // The old DELETE /meet/location/{matchId} is removed: it let anyone clear any
+    // match's location. Cancelling goes through POST /match/meet/clearLocation,
+    // resetting through POST /meet/location/reset.
 }
