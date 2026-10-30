@@ -1,7 +1,7 @@
-package com.Radius.backend.controllers;   // match your other controllers
+package com.Radius.backend.controllers;
 
-import com.Radius.backend.Entity.SteamLink;
-import com.Radius.backend.Bases.SteamLinkRepository;
+import com.Radius.backend.Entity.SteamLink;                    // keep your real package
+import com.Radius.backend.Bases.SteamLinkRepository;      // keep your real package
 import com.Radius.backend.Services.RecentGamesResponse;
 import com.Radius.backend.Services.SteamService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -23,18 +23,17 @@ import java.util.Map;
 public class SteamController {
 
     private static final Duration CACHE_TTL = Duration.ofHours(1);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final SteamService steamService;
     private final SteamLinkRepository repo;
-    private final ObjectMapper mapper;
 
     @Value("${radius.write.key}")
     private String writeKey;
 
-    public SteamController(SteamService steamService, SteamLinkRepository repo, ObjectMapper mapper) {
+    public SteamController(SteamService steamService, SteamLinkRepository repo) {
         this.steamService = steamService;
         this.repo = repo;
-        this.mapper = mapper;
     }
 
     // Only requests carrying the shared secret (sent by your PHP) may write
@@ -51,13 +50,17 @@ public class SteamController {
                                   @RequestHeader(value = "X-Radius-Key", required = false) String key) {
         if (!authorized(key)) return ResponseEntity.status(401).build();
 
-        var steamId = steamService.resolveSteamId(body.getOrDefault("input", ""));
-        if (steamId.isEmpty()) {
-            return ResponseEntity.badRequest().body("Couldn't find that Steam profile.");
+        try {
+            var steamId = steamService.resolveSteamId(body.getOrDefault("input", ""));
+            if (steamId.isEmpty()) {
+                return ResponseEntity.badRequest().body("Couldn't find that Steam profile.");
+            }
+            SteamLink link = repo.findById(userId).orElse(new SteamLink(userId, steamId.get()));
+            link.setSteamId(steamId.get());
+            return ResponseEntity.ok(refresh(link));
+        } catch (RestClientException | IllegalStateException e) {
+            return ResponseEntity.status(502).body("Steam didn't respond. Try again in a minute.");
         }
-        SteamLink link = repo.findById(userId).orElse(new SteamLink(userId, steamId.get()));
-        link.setSteamId(steamId.get());
-        return ResponseEntity.ok(refresh(link));
     }
 
     // Read the cached games, refreshing from Steam if the cache is stale (public)
@@ -72,7 +75,7 @@ public class SteamController {
         if (stale) {
             try {
                 return ResponseEntity.ok(refresh(link));
-            } catch (RestClientException e) {
+            } catch (RestClientException | IllegalStateException e) {
                 // Steam is down or slow: fall back to what we already have
             }
         }
@@ -92,7 +95,7 @@ public class SteamController {
     private List<RecentGamesResponse.Game> refresh(SteamLink link) {
         var games = steamService.getRecentGames(link.getSteamId());
         try {
-            link.setGamesJson(mapper.writeValueAsString(games));
+            link.setGamesJson(MAPPER.writeValueAsString(games));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Couldn't serialize games", e);
         }
@@ -104,7 +107,7 @@ public class SteamController {
     private List<RecentGamesResponse.Game> readCached(SteamLink link) {
         if (link.getGamesJson() == null) return List.of();
         try {
-            return mapper.readValue(link.getGamesJson(),
+            return MAPPER.readValue(link.getGamesJson(),
                     new TypeReference<List<RecentGamesResponse.Game>>() {});
         } catch (JsonProcessingException e) {
             return List.of();

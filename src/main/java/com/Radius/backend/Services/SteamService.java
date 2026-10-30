@@ -1,6 +1,9 @@
 package com.Radius.backend.Services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -14,6 +17,9 @@ import java.util.regex.Pattern;
 public class SteamService {
 
     private static final Pattern STEAM_ID = Pattern.compile("\\d{17}");
+
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     private final RestClient client = RestClient.create("https://api.steampowered.com");
     private final String apiKey;
@@ -35,27 +41,37 @@ public class SteamService {
         String vanity = s.contains("/id/") ? s.substring(s.lastIndexOf("/id/") + 4) : s;
         if (!vanity.matches("[A-Za-z0-9_-]{2,64}")) return Optional.empty();
 
-        var res = client.get()
-            .uri(u -> u.path("/ISteamUser/ResolveVanityURL/v1/")
-                .queryParam("key", apiKey)
-                .queryParam("vanityurl", vanity).build())
-            .retrieve().body(JsonNode.class);
+        String raw = client.get()
+                .uri(u -> u.path("/ISteamUser/ResolveVanityURL/v1/")
+                        .queryParam("key", apiKey)
+                        .queryParam("vanityurl", vanity).build())
+                .retrieve().body(String.class);
 
-        if (res == null || res.path("response").path("success").asInt() != 1)
+        if (raw == null) return Optional.empty();
+        try {
+            JsonNode res = MAPPER.readTree(raw);
+            if (res.path("response").path("success").asInt() != 1) return Optional.empty();
+            return Optional.of(res.path("response").path("steamid").asText());
+        } catch (JsonProcessingException e) {
             return Optional.empty();
-        return Optional.of(res.path("response").path("steamid").asText());
+        }
     }
 
     public List<RecentGamesResponse.Game> getRecentGames(String steamId) {
-        var res = client.get()
-            .uri(u -> u.path("/IPlayerService/GetRecentlyPlayedGames/v1/")
-                .queryParam("key", apiKey)
-                .queryParam("steamid", steamId)
-                .queryParam("count", 3).build())
-            .retrieve().body(RecentGamesResponse.class);
+        String raw = client.get()
+                .uri(u -> u.path("/IPlayerService/GetRecentlyPlayedGames/v1/")
+                        .queryParam("key", apiKey)
+                        .queryParam("steamid", steamId)
+                        .queryParam("count", 3).build())
+                .retrieve().body(String.class);
 
-        if (res == null || res.response() == null || res.response().games() == null)
-            return List.of();   // private profile or no recent games
-        return res.response().games();
+        if (raw == null) return List.of();
+        try {
+            var res = MAPPER.readValue(raw, RecentGamesResponse.class);
+            if (res.response() == null || res.response().games() == null) return List.of();
+            return res.response().games();   // empty for private profiles
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Couldn't read Steam response", e);
+        }
     }
 }
