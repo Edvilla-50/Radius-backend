@@ -7,10 +7,13 @@ import com.Radius.backend.Services.SteamService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClientException;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -25,15 +28,29 @@ public class SteamController {
     private final SteamLinkRepository repo;
     private final ObjectMapper mapper;
 
+    @Value("${radius.write.key}")
+    private String writeKey;
+
     public SteamController(SteamService steamService, SteamLinkRepository repo, ObjectMapper mapper) {
         this.steamService = steamService;
         this.repo = repo;
         this.mapper = mapper;
     }
 
+    // Only requests carrying the shared secret (sent by your PHP) may write
+    private boolean authorized(String provided) {
+        return provided != null && MessageDigest.isEqual(
+                provided.getBytes(StandardCharsets.UTF_8),
+                writeKey.getBytes(StandardCharsets.UTF_8));
+    }
+
     // Link (or re-link) a Steam profile from whatever the user pasted
     @PostMapping("/users/{userId}/steam")
-    public ResponseEntity<?> link(@PathVariable Long userId, @RequestBody Map<String, String> body) {
+    public ResponseEntity<?> link(@PathVariable Long userId,
+                                  @RequestBody Map<String, String> body,
+                                  @RequestHeader(value = "X-Radius-Key", required = false) String key) {
+        if (!authorized(key)) return ResponseEntity.status(401).build();
+
         var steamId = steamService.resolveSteamId(body.getOrDefault("input", ""));
         if (steamId.isEmpty()) {
             return ResponseEntity.badRequest().body("Couldn't find that Steam profile.");
@@ -43,7 +60,7 @@ public class SteamController {
         return ResponseEntity.ok(refresh(link));
     }
 
-    // Read the cached games, refreshing from Steam if the cache is stale
+    // Read the cached games, refreshing from Steam if the cache is stale (public)
     @GetMapping("/users/{userId}/steam")
     public ResponseEntity<?> get(@PathVariable Long userId) {
         var found = repo.findById(userId);
@@ -64,7 +81,10 @@ public class SteamController {
 
     // Unlink
     @DeleteMapping("/users/{userId}/steam")
-    public ResponseEntity<Void> unlink(@PathVariable Long userId) {
+    public ResponseEntity<Void> unlink(@PathVariable Long userId,
+                                       @RequestHeader(value = "X-Radius-Key", required = false) String key) {
+        if (!authorized(key)) return ResponseEntity.status(401).build();
+
         if (repo.existsById(userId)) repo.deleteById(userId);
         return ResponseEntity.noContent().build();
     }
