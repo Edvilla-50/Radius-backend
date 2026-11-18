@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,8 +45,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Radius',
+      debugShowCheckedModeBanner: false,
 
-      // Light theme
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -55,7 +56,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // Dark theme
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -65,8 +65,13 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
 
-      // Automatically follow the device's appearance setting
       themeMode: ThemeMode.system,
+
+      // Preserve the device's accessible text scaling.
+      // Individual screens will handle responsive layouts.
+      builder: (context, child) {
+        return child ?? const SizedBox.shrink();
+      },
 
       initialRoute: initialRoute,
 

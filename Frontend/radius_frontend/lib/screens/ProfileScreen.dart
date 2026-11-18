@@ -21,35 +21,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _generateHtml() {
     final templates = {
-      'minimal': '''
+      'minimal':
+          '''
         <html><body style="font-family: Arial; background: white; padding: 20px;">
           <h1 style="color: #333;">My Profile</h1>
           <p style="color: #666;">$_bio</p>
           <blockquote style="color: #999; font-style: italic;">"$_quote"</blockquote>
         </body></html>
       ''',
-      'dark': '''
+      'dark':
+          '''
         <html><body style="font-family: Arial; background: #1a1a2e; padding: 20px; color: white;">
           <h1 style="color: #e94560;">My Profile</h1>
           <p style="color: #ccc;">$_bio</p>
           <blockquote style="color: #e94560; font-style: italic;">"$_quote"</blockquote>
         </body></html>
       ''',
-      'sunset': '''
+      'sunset':
+          '''
         <html><body style="font-family: Arial; background: linear-gradient(#ff6b6b, #feca57); padding: 20px;">
           <h1 style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">My Profile</h1>
           <p style="color: white;">$_bio</p>
           <blockquote style="color: #fff; font-style: italic;">"$_quote"</blockquote>
         </body></html>
       ''',
-      'gamer': '''
+      'gamer':
+          '''
         <html><body style="font-family: 'Courier New'; background: #0d0d0d; padding: 20px; color: #00ff00;">
           <h1 style="color: #00ff00; text-shadow: 0 0 10px #00ff00;">My Profile</h1>
           <p style="color: #00cc00;">$_bio</p>
           <blockquote style="color: #ff00ff; font-style: italic;">"$_quote"</blockquote>
         </body></html>
       ''',
-      'nature': '''
+      'nature':
+          '''
         <html><body style="font-family: Georgia; background: #e8f5e9; padding: 20px;">
           <h1 style="color: #2e7d32;">My Profile</h1>
           <p style="color: #388e3c;">$_bio</p>
@@ -64,15 +69,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _saving = true);
     try {
       await ApiService.updateProfileHtml(widget.userId, _generateHtml());
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile Saved!')),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile Saved!')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save profile!')),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to save profile!')));
     }
-    setState(() => _saving = false);
+    if (mounted) setState(() => _saving = false);
   }
 
   Future<void> _logout() async {
@@ -94,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
 
-    if (confirm != true) return;
+    if (!mounted || confirm != true) return;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -123,16 +130,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Continue',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Continue', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
 
-    if (confirm != true) return;
+    if (!mounted || confirm != true) return;
 
     // Second confirmation — makes it hard to do by accident
     final finalConfirm = await showDialog<bool>(
@@ -158,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
 
-    if (finalConfirm != true) return;
+    if (!mounted || finalConfirm != true) return;
 
     setState(() => _deletingAccount = true);
 
@@ -176,9 +180,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete account: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete account: $e')));
       }
     } finally {
       if (mounted) setState(() => _deletingAccount = false);
@@ -228,9 +232,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ProfilePreviewScreen(
-                    userId: widget.userId.toString(),
-                  ),
+                  builder: (context) =>
+                      ProfilePreviewScreen(userId: widget.userId.toString()),
                 ),
               );
             },
@@ -243,7 +246,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 )
               : TextButton(
                   onPressed: _saveProfile,
-                  child: const Text('Save', style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
@@ -252,107 +258,146 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                "This is a simple in‑app editor.\nFor full customization, visit www.radius-create.com",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 780),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: constraints.maxWidth >= 700 ? 32 : 16,
+                  vertical: 16,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "This is a simple in‑app editor.\nFor full customization, visit www.radius-create.com",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      'Choose a Template',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _templateCard('minimal', '☀️ Minimal', Colors.white),
+                          _templateCard(
+                            'dark',
+                            '🌙 Dark',
+                            const Color(0xff1a1a2e),
+                          ),
+                          _templateCard('sunset', '🌅 Sunset', Colors.orange),
+                          _templateCard('gamer', '🎮 Gamer', Colors.black),
+                          _templateCard(
+                            'nature',
+                            '🌿 Nature',
+                            const Color(0xffe8f5e9),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Bio',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        hintText: 'Tell people about yourself!',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (val) => setState(() => _bio = val),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Favorite Quote',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: const InputDecoration(
+                        hintText: 'What\'s your favorite quote?',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (val) => setState(() => _quote = val),
+                    ),
+
+                    // ── DELETE ACCOUNT ──────────────────────────────────────
+                    const SizedBox(height: 40),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Danger Zone',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Deleting your account is permanent and cannot be undone.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _deletingAccount
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.red,
+                              ),
+                            )
+                          : OutlinedButton(
+                              onPressed: _deleteAccount,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                              child: const Text(
+                                'Delete Account',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
             ),
-            const Text(
-              'Choose a Template',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _templateCard('minimal', '☀️ Minimal', Colors.white),
-                  _templateCard('dark', '🌙 Dark', const Color(0xff1a1a2e)),
-                  _templateCard('sunset', '🌅 Sunset', Colors.orange),
-                  _templateCard('gamer', '🎮 Gamer', Colors.black),
-                  _templateCard('nature', '🌿 Nature', const Color(0xffe8f5e9)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text('Bio',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            TextField(
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Tell people about yourself!',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (val) => setState(() => _bio = val),
-            ),
-            const SizedBox(height: 20),
-            const Text('Favorite Quote',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'What\'s your favorite quote?',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (val) => setState(() => _quote = val),
-            ),
-
-            // ── DELETE ACCOUNT ──────────────────────────────────────
-            const SizedBox(height: 40),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text(
-              'Danger Zone',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Deleting your account is permanent and cannot be undone.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: _deletingAccount
-                  ? const Center(child: CircularProgressIndicator(color: Colors.red))
-                  : OutlinedButton(
-                      onPressed: _deleteAccount,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text(
-                        'Delete Account',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
     );

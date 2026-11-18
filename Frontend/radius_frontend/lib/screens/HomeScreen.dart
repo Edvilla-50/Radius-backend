@@ -1,5 +1,8 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../services/ApiService.dart';
 import '../state/AppState.dart';
 import 'MapScreen.dart';
@@ -32,13 +35,20 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUser();
   }
 
+  @override
+  void dispose() {
+    _stopListener = true;
+    _listenerGeneration++;
+    super.dispose();
+  }
+
   Future<void> _loadUser() async {
     final prefs = await SharedPreferences.getInstance();
-    final storedId = prefs.getInt("userId");
+    if (!mounted) return;
+    final storedId = prefs.getInt('userId');
 
     if (storedId == null) {
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, "/login");
+      Navigator.pushReplacementNamed(context, '/login');
       return;
     }
 
@@ -49,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _startIncomingListener() async {
     if (_listenerRunning) {
-      debugPrint("HOME: listener already running, skipping duplicate start");
+      debugPrint('HOME: listener already running, skipping duplicate start');
       return;
     }
     _listenerRunning = true;
@@ -58,68 +68,69 @@ class _HomeScreenState extends State<HomeScreen> {
 
     while (mounted && !_stopListener && _listenerGeneration == myGeneration) {
       await Future.delayed(const Duration(seconds: 3));
-
-      if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
+      if (!mounted || _stopListener || _listenerGeneration != myGeneration) {
+        break;
+      }
 
       if (AppState().isHandlingSosCleanup || AppState().justTriggeredSos) {
-        debugPrint("HOME: SOS cleanup active. Skipping active match verification.");
+        debugPrint(
+          'HOME: SOS cleanup active. Skipping active match verification.',
+        );
         continue;
       }
 
       try {
         final incoming = await ApiService.getIncoming(userId!);
-        if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
+        if (!mounted || _stopListener || _listenerGeneration != myGeneration) {
+          break;
+        }
 
         if (incoming.isNotEmpty) {
           final req = incoming[0];
-          final reqId = (req["id"] as num).toInt();
+          final reqId = (req['id'] as num).toInt();
 
           if (!_shownRequestIds.contains(reqId) && !_isDialogShowing) {
             _shownRequestIds.add(reqId);
             _isDialogShowing = true;
-            await _showIncomingPopup(req);
-            _isDialogShowing = false;
+            try {
+              await _showIncomingPopup(req);
+            } finally {
+              _isDialogShowing = false;
+            }
           }
         }
 
-        if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
+        if (!mounted || _stopListener || _listenerGeneration != myGeneration) {
+          break;
+        }
 
         final mutual = await ApiService.checkMutualForUser(userId!);
-        if (!mounted || _stopListener || _listenerGeneration != myGeneration) break;
+        if (!mounted || _stopListener || _listenerGeneration != myGeneration) {
+          break;
+        }
 
         if (mutual != null &&
-    !_isDialogShowing &&
-    !AppState().isHandlingSosCleanup) {
+            !_isDialogShowing &&
+            !AppState().isHandlingSosCleanup) {
+          final matchId = (mutual['matchId'] as num).toInt();
+          if (AppState().activeMatchId == matchId) continue;
 
-  final matchId = (mutual["matchId"] as num).toInt();
+          _stopListener = true;
+          final otherUserId = (mutual['otherUserId'] as num).toInt();
+          AppState().setActiveMatch(matchId);
+          if (!mounted) break;
 
-  // Prevent reopening the same match forever
-    if (AppState().activeMatchId == matchId) {
-      continue;
-    }
-
-    _stopListener = true;
-
-    final otherUserId = (mutual["otherUserId"] as num).toInt();
-
-    AppState().setActiveMatch(matchId);
-
-    if (!mounted) break;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => SuggestionsScreen(
-          otherUserId: otherUserId,
-          matchId: matchId,
-        ),
-      ),
-      (route) => false,
-    );
-
-    break;
-  }
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) =>
+                  SuggestionsScreen(otherUserId: otherUserId, matchId: matchId),
+            ),
+            (route) => false,
+          );
+          break;
+        }
       } catch (e) {
-        debugPrint("LISTENER ERROR: $e");
+        debugPrint('LISTENER ERROR: $e');
       }
     }
 
@@ -127,41 +138,47 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showIncomingPopup(dynamic req) async {
-    final requesterId = (req["requesterId"] as num).toInt();
-    final receiverId = (req["receiverId"] as num).toInt();
-    final matchId = (req["matchId"] as num).toInt();
-    final reqId = (req["id"] as num).toInt();
+    final requesterId = (req['requesterId'] as num).toInt();
+    final receiverId = (req['receiverId'] as num).toInt();
+    final matchId = (req['matchId'] as num).toInt();
+    final reqId = (req['id'] as num).toInt();
 
     final requester = await ApiService.getUser(requesterId);
-    if (!mounted) return;
+    if (!mounted || _stopListener) return;
+    final requesterName = requester['name'];
 
-    final requesterName = requester["name"];
-
-    await showDialog(
+    await showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Meet Request"),
-        content: Text("$requesterName wants to meet!"),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Meet Request'),
+        content: Text('$requesterName wants to meet!'),
         actions: [
           TextButton(
             onPressed: () {
               ApiService.respond(reqId, false);
-              Navigator.pop(context);
+              Navigator.of(dialogContext).pop();
             },
-            child: const Text("Decline"),
+            child: const Text('Decline'),
           ),
           TextButton(
             onPressed: () async {
               _stopListener = true;
-              await ApiService.respond(reqId, true);
+              try {
+                await ApiService.respond(reqId, true);
+              } catch (e) {
+                debugPrint('Accept request error: $e');
+                _stopListener = false;
+                return;
+              }
               if (!mounted) return;
 
-              final otherUserId = requesterId == userId ? receiverId : requesterId;
-              Navigator.pop(context);
+              final otherUserId = requesterId == userId
+                  ? receiverId
+                  : requesterId;
+              if (dialogContext.mounted) Navigator.of(dialogContext).pop();
 
               await Future.delayed(const Duration(milliseconds: 200));
               if (!mounted) return;
-
               AppState().setActiveMatch(matchId);
 
               Navigator.of(context).pushAndRemoveUntil(
@@ -174,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 (route) => false,
               );
             },
-            child: const Text("Accept"),
+            child: const Text('Accept'),
           ),
         ],
       ),
@@ -195,23 +212,104 @@ class _HomeScreenState extends State<HomeScreen> {
       HomeEmergencyScreen(userId: userId!),
     ];
 
-    return Scaffold(
-      body: IndexedStack(index: index, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => setState(() => index = i),
-        destinations: const [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final media = MediaQuery.of(context);
+        final verticalHinges = media.displayFeatures.where(
+          (feature) =>
+              feature.type == ui.DisplayFeatureType.hinge &&
+              feature.bounds.height > feature.bounds.width,
+        );
+
+        // On a two-panel display, keep the rail in the first panel rather
+        // than letting the active screen run underneath the hinge.
+        double? leftPaneWidth;
+        double? hingeWidth;
+        for (final hinge in verticalHinges) {
+          final localLeft = hinge.bounds.left - media.padding.left;
+          if (localLeft > 0 && localLeft < constraints.maxWidth) {
+            leftPaneWidth = localLeft;
+            hingeWidth = hinge.bounds.width;
+            break;
+          }
+        }
+
+        final wide = constraints.maxWidth >= 700;
+        final content = IndexedStack(index: index, children: pages);
+        const destinations = [
           NavigationDestination(icon: Icon(Icons.map), label: 'Map'),
           NavigationDestination(icon: Icon(Icons.handshake), label: 'Requests'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-          NavigationDestination(icon: Icon(Icons.interests), label: 'Trait Stack'),
+          NavigationDestination(
+            icon: Icon(Icons.interests),
+            label: 'Trait Stack',
+          ),
           NavigationDestination(
             icon: Icon(Icons.emergency, color: Colors.red),
-            selectedIcon: Icon(Icons.emergency, color: Colors.red),
             label: 'Emergency',
           ),
-        ],
-      ),
+        ];
+
+        final rail = NavigationRail(
+          selectedIndex: index,
+          onDestinationSelected: (i) => setState(() => index = i),
+          labelType: NavigationRailLabelType.all,
+          destinations: const [
+            NavigationRailDestination(
+              icon: Icon(Icons.map),
+              label: Text('Map'),
+            ),
+            NavigationRailDestination(
+              icon: Icon(Icons.handshake),
+              label: Text('Requests'),
+            ),
+            NavigationRailDestination(
+              icon: Icon(Icons.person),
+              label: Text('Profile'),
+            ),
+            NavigationRailDestination(
+              icon: Icon(Icons.interests),
+              label: Text('Traits'),
+            ),
+            NavigationRailDestination(
+              icon: Icon(Icons.emergency, color: Colors.red),
+              label: Text('Emergency'),
+            ),
+          ],
+        );
+
+        return Scaffold(
+          body: wide
+              ? SafeArea(
+                  child: Row(
+                    children: [
+                      if (leftPaneWidth != null && hingeWidth != null) ...[
+                        SizedBox(
+                          width: leftPaneWidth,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: rail,
+                          ),
+                        ),
+                        SizedBox(width: hingeWidth),
+                      ] else ...[
+                        rail,
+                        const VerticalDivider(width: 1),
+                      ],
+                      Expanded(child: content),
+                    ],
+                  ),
+                )
+              : content,
+          bottomNavigationBar: wide
+              ? null
+              : NavigationBar(
+                  selectedIndex: index,
+                  onDestinationSelected: (i) => setState(() => index = i),
+                  destinations: destinations,
+                ),
+        );
+      },
     );
   }
 }

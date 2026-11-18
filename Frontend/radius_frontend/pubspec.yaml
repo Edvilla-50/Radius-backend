@@ -1,8 +1,9 @@
+
 name: radius_frontend
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.7+13
+version: 1.0.7+16
 
 environment:
   sdk: ^3.9.2

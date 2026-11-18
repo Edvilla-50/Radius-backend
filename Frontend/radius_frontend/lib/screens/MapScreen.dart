@@ -8,6 +8,8 @@ import 'dart:async';
 import '../services/ApiService.dart';
 import 'ProfilePreviewScreen.dart';
 import 'OnboardingScreen.dart';
+import 'radius_tile_layer.dart'; // Make sure this path matches your project structure
+import 'dart:ui' as ui;
 
 const String _spotifyPlaylistUrl = 'https://open.spotify.com/playlist/4mmKm7hFzxAn2XYtx4JqRS?si=6A0E9NdDSjaBp7pExHlXIw&pi=YsDnlnQNQAePF';
 const String _appleMusicPlaylistUrl = 'https://music.apple.com/us/playlist/the-radius-soundtrack/pl.u-jV899DNFDe543bD';
@@ -25,20 +27,18 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   List<dynamic> _matches = [];
   bool _scanning = false;
   bool _checkedIn = false;
+  int? _selectedProfileId;
   Timer? _expiryTimer;
   final MapController _mapController = MapController();
   StreamSubscription<Position>? _locationStream;
 
-  // How long a manual check-in stays active before the user is hidden again.
   static const Duration _checkInDuration = Duration(minutes: 30);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Local map display only. Location is NEVER sent to the backend here.
     _getLocation();
-    // Always start hidden. The user must manually check in with SCAN.
     _checkOut();
   }
 
@@ -48,7 +48,6 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     _expiryTimer?.cancel();
     _locationStream?.cancel();
     _locationStream = null;
-    // Best-effort hide when leaving the screen.
     ApiService.checkOut(widget.userId).catchError((e) {
       debugPrint('MapScreen dispose hide error: $e');
     });
@@ -63,8 +62,6 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     }
   }
 
-  // Check out = hide from other users. Reuses the ghost mode endpoint
-  // (ghostMode == true means hidden / not checked in).
   Future<void> _checkOut() async {
     _expiryTimer?.cancel();
     _expiryTimer = null;
@@ -77,10 +74,10 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     setState(() {
       _checkedIn = false;
       _matches = [];
+      _selectedProfileId = null;
     });
   }
 
-  // Gets GPS for local map display only. Does NOT send anything to the backend.
   Future<void> _getLocation() async {
     try {
       await Geolocator.requestPermission();
@@ -104,7 +101,6 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
         setState(() {
           _myLocation = LatLng(position.latitude, position.longitude);
         });
-        // Intentionally NOT pushing to backend.
       });
     } catch (e) {
       debugPrint('MapScreen _getLocation error: $e');
@@ -122,6 +118,27 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     _mapController.move(_myLocation!, 15.0);
   }
 
+  Future<void> _openProfile(int userId, bool wide) async {
+    if (wide) {
+      setState(() => _selectedProfileId = userId);
+      return;
+    }
+    final blocked = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfilePreviewScreen(userId: userId.toString()),
+      ),
+    );
+    if (blocked == true && mounted) _removeBlockedUser(userId);
+  }
+
+  void _removeBlockedUser(int userId) {
+    setState(() {
+      _matches.removeWhere((m) => (m['id'] as num).toInt() == userId);
+      if (_selectedProfileId == userId) _selectedProfileId = null;
+    });
+  }
+
   Future<void> _sendRequest(int otherUserId) async {
     try {
       await ApiService.sendMeetRequest(widget.userId, otherUserId);
@@ -137,12 +154,9 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     }
   }
 
-  // SCAN is the ONLY way a user's location is shared. Every new check-in
-  // requires explicit confirmation, and it expires automatically.
   Future<void> _scan() async {
     if (!mounted) return;
 
-    // Require a fresh confirmation for each new check-in.
     if (!_checkedIn) {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -170,11 +184,9 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
     setState(() => _scanning = true);
     try {
-      // Always use a fresh fix; never share a stale or missing location.
       final position = await Geolocator.getCurrentPosition();
       _myLocation = LatLng(position.latitude, position.longitude);
 
-      // Server marks the user visible only as a result of this manual action.
       await ApiService.checkIn(
         widget.userId,
         position.latitude,
@@ -188,6 +200,10 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         _matches = matches;
+        if (_selectedProfileId != null &&
+            !matches.any((m) => (m['id'] as num).toInt() == _selectedProfileId)) {
+          _selectedProfileId = null;
+        }
         _checkedIn = true;
         _scanning = false;
       });
@@ -235,10 +251,31 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Map Layer
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final media = MediaQuery.of(context);
+        final verticalHinges = media.displayFeatures.where((feature) =>
+        feature.type == ui.DisplayFeatureType.hinge &&
+        feature.bounds.height > feature.bounds.width).toList();
+        final hinge = verticalHinges.isEmpty ? null : verticalHinges.first;
+        // Keep a single-column layout when the usable regions are too narrow.
+        final wide = constraints.maxWidth >= 720 &&
+            (hinge == null ||
+                (hinge.bounds.left >= 360 &&
+                 constraints.maxWidth - hinge.bounds.right >= 280));
+        final panelWidth = hinge != null && wide
+            ? constraints.maxWidth - hinge.bounds.right
+            : (constraints.maxWidth >= 1050 ? 340.0 : 280.0);
+        final hingeGap = hinge != null && wide ? hinge.bounds.width : 0.0;
+        final safeTop = MediaQuery.paddingOf(context).top;
+        final safeBottom = MediaQuery.paddingOf(context).bottom;
+        return Scaffold(
+          body: Row(
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+          // Map Layer with dynamic dark mode filter & attribution
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -246,10 +283,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
               initialZoom: 15.0,
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.radius.app',
-              ),
+              radiusTileLayer(context),
               MarkerLayer(
                 markers: [
                   if (_myLocation != null)
@@ -265,12 +299,13 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                     ),
                 ],
               ),
+              radiusAttribution(),
             ],
           ),
 
           // Status banner
           Positioned(
-            top: 45,
+            top: safeTop + 16,
             left: 15,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -300,10 +335,10 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             ),
           ),
 
-          // Stop Sharing Button (only while checked in)
+          // Stop Sharing Button
           if (_checkedIn)
             Positioned(
-              top: 45,
+              top: safeTop + 16,
               right: 70,
               child: FloatingActionButton.small(
                 heroTag: "stop_sharing_btn",
@@ -317,7 +352,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
           // Recenter Map Button
           Positioned(
             right: 15,
-            bottom: 115,
+            bottom: safeBottom + 100,
             child: FloatingActionButton.small(
               heroTag: "recenter_map_btn",
               backgroundColor: Colors.white.withValues(alpha: 0.95),
@@ -331,7 +366,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
           // Tutorial Button
           Positioned(
-            top: 45,
+            top: safeTop + 16,
             right: 15,
             child: FloatingActionButton.small(
               heroTag: "tutorial_btn",
@@ -350,7 +385,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
           // Scan Button
           Positioned(
-            bottom: 40,
+            bottom: safeBottom + 24,
             left: 0,
             right: 0,
             child: Center(
@@ -381,7 +416,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
           ),
 
           // Matches Container
-          if (_matches.isNotEmpty)
+          if (!wide && _matches.isNotEmpty)
             Positioned(
               top: 105,
               left: 10,
@@ -415,24 +450,8 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                             color: Colors.blue,
                           ),
                         ),
-                        onTap: () async {
-                          final blocked = await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ProfilePreviewScreen(
-                                userId: matchId.toString(),
-                              ),
-                            ),
-                          );
-                          if (blocked == true && mounted) {
-                            setState(() {
-                              _matches.removeWhere(
-                                (m) => (m['id'] as num).toInt() == matchId,
-                              );
-                            });
-                          }
-                        },
-                        trailing: ElevatedButton(
+                         onTap: () => _openProfile(matchId, false),
+trailing: ElevatedButton(
                           onPressed: () => _sendRequest(matchId),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.lightGreenAccent,
@@ -452,8 +471,107 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
-        ],
-      ),
+                  ],
+                ),
+              ),
+              if (wide) ...[
+                if (hingeGap > 0) SizedBox(width: hingeGap),
+                const VerticalDivider(width: 1),
+                SizedBox(
+                  width: panelWidth - 1,
+                  child: _selectedProfileId != null
+                      ? Column(
+                          children: [
+                            SafeArea(
+                              bottom: false,
+                              child: ListTile(
+                                leading: IconButton(
+                                  tooltip: 'Back to nearby users',
+                                  icon: const Icon(Icons.arrow_back),
+                                  onPressed: () => setState(
+                                    () => _selectedProfileId = null,
+                                  ),
+                                ),
+                                title: const Text('Nearby users'),
+                              ),
+                            ),
+                            Expanded(
+                              child: ProfilePreviewScreen(
+                                key: ValueKey(_selectedProfileId),
+                                userId: _selectedProfileId.toString(),
+                                embedded: true,
+                                onBlocked: () => _removeBlockedUser(
+                                  _selectedProfileId!,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : SafeArea(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
+                                child: Text(
+                                  'Nearby users',
+                                  style: TextStyle(
+                                    fontSize: 21,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(_checkedIn
+                                    ? 'Visible for up to 30 minutes'
+                                    : 'You are hidden until you check in.'),
+                              ),
+                              const SizedBox(height: 12),
+                              Expanded(
+                                child: _matches.isEmpty
+                                    ? const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(20),
+                                          child: Text(
+                                            'No nearby matches yet. Tap SCAN on the map to check in.',
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      )
+                                    : ListView.builder(
+                                        itemCount: _matches.length,
+                                        itemBuilder: (context, index) {
+                                          final match = _matches[index];
+                                          final matchId =
+                                              (match['id'] as num).toInt();
+                                          return ListTile(
+                                            leading: const Icon(Icons.person,
+                                                color: Colors.blue),
+                                            title: Text(match['name']?.toString() ??
+                                                'Unknown user'),
+                                            subtitle: Text(
+                                              '${(match['score'] * 100).toStringAsFixed(0)}% match',
+                                            ),
+                                            onTap: () => _openProfile(matchId, true),
+                                            trailing: IconButton(
+                                              icon: const Icon(Icons.person_add_alt_1),
+                                              tooltip: 'Send meetup request',
+                                              onPressed: () => _sendRequest(matchId),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }
